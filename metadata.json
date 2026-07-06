@@ -1,0 +1,6 @@
+{
+  "name": "PAEONIX",
+  "description": "A lightweight, modern, mobile-first educational health platform designed for quick medical information discovery, verified articles, user-driven quality moderation, and helpful AI assistant guidance under the PAEONIX brand.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

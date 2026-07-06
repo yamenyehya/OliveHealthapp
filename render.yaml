@@ -1,0 +1,22 @@
+services:
+  - type: web
+    name: olivehealth
+    env: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: GEMINI_API_KEY
+        sync: true
+      - key: MONGODB_URI
+        sync: true
+      - key: JWT_SECRET
+        sync: true
+      - key: APP_URL
+        sync: true
+      - key: GOOGLE_CLIENT_ID
+        sync: true
+      - key: GOOGLE_CLIENT_SECRET
+        sync: true

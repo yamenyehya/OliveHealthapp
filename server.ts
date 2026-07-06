@@ -40,7 +40,7 @@ const app = express();
 app.use(express.json({ limit: "50mb" }));
 app.use(express.urlencoded({ limit: "50mb", extended: true }));
 
-const PORT = 3000;
+const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const JWT_SECRET = process.env.JWT_SECRET || "yamen_secret_jwt_key_development_only";
 
 // Lazy-initialize Gemini SDK to prevent crashes if key is initially absent

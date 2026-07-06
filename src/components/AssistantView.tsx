@@ -44,7 +44,7 @@ export default function AssistantView({
   ];
 
   return (
-    <div className="flex flex-col h-[calc(100vh-4rem)] pb-16 bg-gray-50 animate-fade-in">
+    <div className="flex-1 min-h-0 h-full flex flex-col bg-gray-50 pb-20 md:pb-6 animate-fade-in">
       {/* Assistant Header banner */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 sticky top-0 z-10 flex items-center justify-between shadow-sm shrink-0">
         <div className="flex items-center gap-2">

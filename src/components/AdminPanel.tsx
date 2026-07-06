@@ -342,10 +342,10 @@ export default function AdminPanel({ articles, onRefreshArticles, token }: Admin
   return (
     <div className="bg-white rounded-3xl border border-gray-100 p-4 shadow-sm">
       {/* Tab Selectors */}
-      <div className="flex border-b border-gray-100 mb-6 pb-1">
+      <div className="flex overflow-x-auto scrollbar-none border-b border-gray-100 mb-6 pb-1 -mx-4 px-4 whitespace-nowrap">
         <button
           onClick={() => { setActiveSubTab("extract"); }}
-          className={`flex-1 text-center py-2 text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[120px] text-center py-2 text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 shrink-0 ${
             activeSubTab === "extract"
               ? "text-medical-600 border-medical-500 scale-102"
               : "text-gray-400 border-transparent hover:text-gray-600"
@@ -355,7 +355,7 @@ export default function AdminPanel({ articles, onRefreshArticles, token }: Admin
         </button>
         <button
           onClick={() => { setActiveSubTab("manage"); }}
-          className={`flex-1 text-center py-2 text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[120px] text-center py-2 text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 shrink-0 ${
             activeSubTab === "manage"
               ? "text-medical-600 border-medical-500 scale-102"
               : "text-gray-400 border-transparent hover:text-gray-600"
@@ -365,7 +365,7 @@ export default function AdminPanel({ articles, onRefreshArticles, token }: Admin
         </button>
         <button
           onClick={() => { setActiveSubTab("reports"); }}
-          className={`flex-1 text-center py-2 text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[120px] text-center py-2 text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 shrink-0 ${
             activeSubTab === "reports"
               ? "text-medical-600 border-medical-500 scale-102"
               : "text-gray-400 border-transparent hover:text-gray-600"
@@ -375,7 +375,7 @@ export default function AdminPanel({ articles, onRefreshArticles, token }: Admin
         </button>
         <button
           onClick={() => { setActiveSubTab("verifications"); }}
-          className={`flex-1 text-center py-2 text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 ${
+          className={`flex-1 min-w-[120px] text-center py-2 text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 shrink-0 ${
             activeSubTab === "verifications"
               ? "text-medical-600 border-medical-500 scale-102"
               : "text-gray-400 border-transparent hover:text-gray-600"

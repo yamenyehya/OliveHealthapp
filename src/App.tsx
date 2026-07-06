@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { Article, ChatMessage, User } from "./types.js";
+import { BookOpen, MessageSquare, Bookmark, Stethoscope, Award, Shield, User as UserIcon, Settings, LogOut, ChevronDown } from "lucide-react";
 import BottomNav from "./components/BottomNav.js";
 import BrowseView from "./components/BrowseView.js";
 import ArticleDetailView from "./components/ArticleDetailView.js";
@@ -121,6 +122,7 @@ export default function App() {
   }, [user?.settings?.theme]);
 
   // Chat States
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState<boolean>(false);
   const [chatHistory, setChatHistory] = useState<ChatMessage[]>([]);
   const [articlesLoading, setArticlesLoading] = useState<boolean>(true);
   const [chatThinking, setChatThinking] = useState<boolean>(false);
@@ -428,45 +430,125 @@ export default function App() {
               className="flex items-center gap-2.5 cursor-pointer select-none" 
               onClick={() => { handleSelectArticle(null); setActiveTab("browse"); }}
             >
-              <PaeonixLogo size="md" showText={true} />
+              <PaeonixLogo size="md" showText={true} className="hidden lg:flex" />
+              <PaeonixLogo size="md" showText={false} className="lg:hidden" />
             </div>
 
             <div className="flex items-center gap-4">
-              <nav className="flex items-center gap-1.5">
+              <nav className="flex items-center gap-1 overflow-x-auto max-w-[320px] sm:max-w-[400px] lg:max-w-[700px] no-scrollbar">
                 {[
-                  { id: "browse", label: "Browse Articles" },
-                  { id: "assistant", label: "AI Assistant" },
-                  { id: "saved", label: "Bookmarks" },
-                  { id: "doctors", label: "Doctors" },
-                  ...(user?.role === "doctor" ? [{ id: "doctor-hub", label: "Doctor Hub" }] : []),
-                  ...(isOwnerAdmin ? [{ id: "admin-hub", label: "Admin Hub" }] : []),
-                  { id: "profile", label: "Profile" },
-                  { id: "settings", label: "Settings" }
-                ].map((item) => (
-                  <button
-                    key={item.id}
-                    onClick={() => {
-                      handleSelectArticle(null);
-                      setActiveTab(item.id);
-                    }}
-                    className={`px-4 py-2 rounded-xl text-xs font-bold transition-all ${
-                      activeTab === item.id
-                        ? "bg-medical-500 text-white shadow-sm"
-                        : "text-gray-500 hover:text-gray-900 hover:bg-gray-100/80"
-                    }`}
-                  >
-                    {item.label}
-                  </button>
-                ))}
+                  { id: "browse", label: "Browse", icon: BookOpen },
+                  { id: "assistant", label: "AI", icon: MessageSquare },
+                  { id: "saved", label: "Bookmarks", icon: Bookmark },
+                  { id: "doctors", label: "Doctors", icon: Stethoscope },
+                  ...(user?.role === "doctor" ? [{ id: "doctor-hub", label: "Doc Hub", icon: Award }] : []),
+                  ...(isOwnerAdmin ? [{ id: "admin-hub", label: "Admin Hub", icon: Shield }] : []),
+                  { id: "profile", label: "Profile", icon: UserIcon },
+                  { id: "settings", label: "Settings", icon: Settings }
+                ].map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => {
+                        handleSelectArticle(null);
+                        setActiveTab(item.id);
+                      }}
+                      className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                        activeTab === item.id
+                          ? "bg-medical-500 text-white shadow-sm"
+                          : "text-gray-500 hover:text-gray-900 hover:bg-gray-100/80"
+                      }`}
+                    >
+                      <Icon className="w-4 h-4 shrink-0" />
+                      <span className="hidden lg:inline">{item.label}</span>
+                    </button>
+                  );
+                })}
               </nav>
 
               <div className="h-6 w-[1px] bg-gray-200" />
 
-              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-medical-50/80 border border-medical-100/50">
-                <div className="w-2 h-2 rounded-full bg-medical-500 animate-pulse" />
-                <span className="text-xs font-extrabold text-medical-900 truncate max-w-[150px]">
-                  {user.email}
-                </span>
+              <div className="relative">
+                <button
+                  onClick={() => setIsUserMenuOpen(!isUserMenuOpen)}
+                  className="flex items-center gap-1.5 pl-2 pr-3 py-1.5 rounded-full hover:bg-gray-50 border border-gray-100 transition-all cursor-pointer select-none focus:outline-none"
+                  style={{ WebkitTapHighlightColor: "transparent" }}
+                >
+                  <div className="relative w-7 h-7 rounded-full bg-medical-500 text-white flex items-center justify-center text-xs font-extrabold shadow-xs shrink-0">
+                    {user.email ? user.email.charAt(0).toUpperCase() : "U"}
+                    <span className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-white" />
+                  </div>
+                  <span className="text-xs font-bold text-gray-500 hidden xl:inline truncate max-w-[120px]">
+                    {user.email}
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 shrink-0 ${isUserMenuOpen ? 'rotate-180' : ''}`} />
+                </button>
+
+                {isUserMenuOpen && (
+                  <>
+                    {/* Dismiss overlay */}
+                    <div 
+                      className="fixed inset-0 z-40 cursor-default"
+                      onClick={() => setIsUserMenuOpen(false)}
+                    />
+                    
+                    {/* Floating Dropdown Card */}
+                    <div className="absolute right-0 mt-2 w-72 bg-white rounded-2xl border border-gray-100 shadow-xl z-50 p-4 animate-fade-in">
+                      <div className="flex items-center gap-3 pb-3 border-b border-gray-100">
+                        <div className="w-10 h-10 rounded-full bg-medical-100 text-medical-800 flex items-center justify-center text-sm font-bold shrink-0">
+                          {user.email ? user.email.charAt(0).toUpperCase() : "U"}
+                        </div>
+                        <div className="min-w-0 flex-1">
+                          <p className="text-xs font-bold text-gray-900 truncate">{user.email}</p>
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-[10px] font-bold text-emerald-700 capitalize px-2 py-0.5 rounded-full bg-emerald-50">
+                              {user.role}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="py-2 space-y-0.5">
+                        <button
+                          onClick={() => {
+                            handleSelectArticle(null);
+                            setActiveTab("profile");
+                            setIsUserMenuOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-gray-600 hover:text-gray-950 hover:bg-gray-50 transition-all text-left"
+                        >
+                          <UserIcon className="w-4 h-4 text-gray-400" />
+                          <span>View Profile</span>
+                        </button>
+                        <button
+                          onClick={() => {
+                            handleSelectArticle(null);
+                            setActiveTab("settings");
+                            setIsUserMenuOpen(false);
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-gray-600 hover:text-gray-950 hover:bg-gray-50 transition-all text-left"
+                        >
+                          <Settings className="w-4 h-4 text-gray-400" />
+                          <span>Settings</span>
+                        </button>
+                      </div>
+
+                      <div className="pt-2 border-t border-gray-100">
+                        <button
+                          onClick={() => {
+                            setIsUserMenuOpen(false);
+                            handleLogout();
+                          }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-xl text-xs font-bold text-red-600 hover:bg-red-50 transition-all text-left"
+                        >
+                          <LogOut className="w-4 h-4 text-red-500" />
+                          <span>Log Out</span>
+                        </button>
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             </div>
           </div>

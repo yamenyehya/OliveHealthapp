@@ -202,22 +202,22 @@ export default function DoctorHubView({ user, articles, token, onRefreshArticles
         </div>
 
         {/* Tab Toggle */}
-        <div className="flex bg-gray-100 p-1 rounded-2xl self-start">
+        <div className="flex bg-gray-100 p-1 rounded-2xl w-full sm:w-auto">
           <button
             onClick={() => { setDoctorTab("add"); setDoctorError(null); setDoctorSuccess(null); }}
-            className={`py-1.5 px-4 rounded-xl text-xs font-bold transition-all ${
+            className={`py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex-1 sm:flex-none text-center ${
               doctorTab === "add" ? "bg-white text-emerald-950 shadow-xs" : "text-gray-500 hover:text-gray-900"
             }`}
           >
-            Submit Draft Article
+            Submit Draft
           </button>
           <button
             onClick={() => { setDoctorTab("edit"); setDoctorError(null); setDoctorSuccess(null); }}
-            className={`py-1.5 px-4 rounded-xl text-xs font-bold transition-all ${
+            className={`py-1.5 px-3 rounded-xl text-xs font-bold transition-all flex-1 sm:flex-none text-center ${
               doctorTab === "edit" ? "bg-white text-emerald-950 shadow-xs" : "text-gray-500 hover:text-gray-900"
             }`}
           >
-            Suggest Article Revisions
+            Suggest Revisions
           </button>
         </div>
       </div>

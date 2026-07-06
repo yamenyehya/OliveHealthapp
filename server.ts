@@ -54,7 +54,9 @@ function getGeminiClient(): GoogleGenAI {
     aiClient = new GoogleGenAI({
       apiKey: key,
       httpOptions: {
-        headers: {}
+        headers: {
+          "User-Agent": "aistudio-build",
+        }
       }
     });
   }

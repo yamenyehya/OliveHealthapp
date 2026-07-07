@@ -538,7 +538,8 @@ export async function getArticles(approvedOnly = true): Promise<Article[]> {
       tags: item.tags,
       source: item.source,
       approved: item.approved,
-      createdAt: item.createdAt
+      createdAt: item.createdAt,
+      readTime: item.readTime
     })) as Article[];
   } else {
     const data = readLocalData();
@@ -573,7 +574,8 @@ export async function getArticle(id: string): Promise<Article | null> {
       tags: item.tags,
       source: item.source,
       approved: item.approved,
-      createdAt: item.createdAt
+      createdAt: item.createdAt,
+      readTime: item.readTime
     } as Article;
   } else {
     const data = readLocalData();
@@ -604,7 +606,8 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
         tags: match.tags,
         source: match.source,
         approved: match.approved,
-        createdAt: match.createdAt
+        createdAt: match.createdAt,
+        readTime: match.readTime
       } as Article;
     }
     return {
@@ -617,7 +620,8 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
       tags: item.tags,
       source: item.source,
       approved: item.approved,
-      createdAt: item.createdAt
+      createdAt: item.createdAt,
+      readTime: item.readTime
     } as Article;
   } else {
     const data = readLocalData();
@@ -630,7 +634,7 @@ export async function getArticleBySlug(slug: string): Promise<Article | null> {
   }
 }
 
-export async function createArticle(article: Omit<Article, "id" | "createdAt" | "slug"> & { id?: string; createdAt?: string; slug?: string }): Promise<Article> {
+export async function createArticle(article: Omit<Article, "id" | "createdAt" | "slug"> & { id?: string; createdAt?: string; slug?: string; readTime?: number }): Promise<Article> {
   const generatedSlug = article.slug || generateSlug(article.title);
   const newArticle: Article = {
     id: article.id || `article-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
@@ -642,7 +646,8 @@ export async function createArticle(article: Omit<Article, "id" | "createdAt" | 
     tags: article.tags,
     source: article.source,
     approved: article.approved ?? true,
-    createdAt: article.createdAt || new Date().toISOString()
+    createdAt: article.createdAt || new Date().toISOString(),
+    readTime: article.readTime
   };
 
   if (isMongo && mongoDb) {

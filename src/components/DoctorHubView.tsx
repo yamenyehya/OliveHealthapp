@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { Award, Send, Sparkles, AlertCircle, CheckCircle, FileText, Link, HelpCircle } from "lucide-react";
 import { Article } from "../types.js";
+import ClockWheelPicker from "./ClockWheelPicker.js";
 
 interface DoctorHubViewProps {
   user: any;
@@ -27,6 +28,7 @@ export default function DoctorHubView({ user, articles, token, onRefreshArticles
   const [draftTags, setDraftTags] = useState("");
   const [draftContent, setDraftContent] = useState("");
   const [draftSource, setDraftSource] = useState("");
+  const [draftReadTime, setDraftReadTime] = useState(5);
 
   // Edit Recommendation States
   const [editArticleId, setEditArticleId] = useState("");
@@ -119,7 +121,8 @@ export default function DoctorHubView({ user, articles, token, onRefreshArticles
           category: draftCategory,
           tags: tagsArray,
           content: draftContent,
-          source: draftSource || `Verified Doctor (${user?.email})`
+          source: draftSource || `Verified Doctor (${user?.email})`,
+          readTime: draftReadTime
         })
       });
 
@@ -131,6 +134,7 @@ export default function DoctorHubView({ user, articles, token, onRefreshArticles
         setDraftTags("");
         setDraftContent("");
         setDraftSource("");
+        setDraftReadTime(5);
         onRefreshArticles();
       } else {
         const err = await res.json();
@@ -362,17 +366,26 @@ export default function DoctorHubView({ user, articles, token, onRefreshArticles
                 />
               </div>
 
-              <div>
-                <label className="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase">
-                  Medical Source Citation or URL
-                </label>
-                <input
-                  type="text"
-                  placeholder="e.g., Mayo Clinic, New England Journal of Medicine, or World Health Organization"
-                  value={draftSource}
-                  onChange={(e) => setDraftSource(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-3.5 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <div>
+                  <label className="block text-[11px] font-bold text-gray-500 mb-1.5 uppercase">
+                    Medical Source Citation or URL
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="e.g., Mayo Clinic, New England Journal of Medicine, or World Health Organization"
+                    value={draftSource}
+                    onChange={(e) => setDraftSource(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2.5 px-3.5 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
+                </div>
+                <div className="flex justify-center md:justify-end">
+                  <ClockWheelPicker
+                    value={draftReadTime}
+                    onChange={setDraftReadTime}
+                    colorTheme="emerald"
+                  />
+                </div>
               </div>
 
               <button

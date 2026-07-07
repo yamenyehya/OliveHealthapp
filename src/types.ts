@@ -53,6 +53,7 @@ export interface Article {
   source: string; // Trusted medical source/reference
   approved: boolean; // Needs admin approval if generated from link
   createdAt: string;
+  readTime?: number; // Estimated read time in minutes
 }
 
 export interface Report {

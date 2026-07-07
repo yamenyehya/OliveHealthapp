@@ -500,7 +500,7 @@ app.post("/api/doctor/articles", authenticateToken, async (req: any, res: any) =
     return res.status(403).json({ error: "Only verified doctors can submit articles." });
   }
 
-  const { title, summary, content, category, tags, source } = req.body;
+  const { title, summary, content, category, tags, source, readTime } = req.body;
   if (!title || !content || !category) {
     return res.status(400).json({ error: "Title, content, and category are required" });
   }
@@ -513,7 +513,8 @@ app.post("/api/doctor/articles", authenticateToken, async (req: any, res: any) =
       category,
       tags: tags || [],
       source: source || `Verified Doctor (${req.user.email})`,
-      approved: false // Set as unapproved draft!
+      approved: false, // Set as unapproved draft!
+      readTime: readTime ? Number(readTime) : undefined
     });
 
     res.status(201).json(newArt);
@@ -918,7 +919,7 @@ app.get("/api/articles/by-slug/:slug", optionalAuthenticate, async (req: any, re
 
 // Add manual article (Admin)
 app.post("/api/articles", requireAdmin, async (req, res) => {
-  const { title, summary, content, category, tags, source, approved } = req.body;
+  const { title, summary, content, category, tags, source, approved, readTime } = req.body;
   if (!title || !summary || !content) {
     return res.status(400).json({ error: "Title, summary, and content are required" });
   }
@@ -931,7 +932,8 @@ app.post("/api/articles", requireAdmin, async (req, res) => {
       category: category || "General Health",
       tags: tags || [],
       source: source || "Self-published",
-      approved: approved !== undefined ? approved : true
+      approved: approved !== undefined ? approved : true,
+      readTime: readTime ? Number(readTime) : undefined
     });
     res.status(201).json(created);
   } catch (err: any) {

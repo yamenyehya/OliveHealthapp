@@ -1,5 +1,5 @@
-import React, { useState } from "react";
-import { ChevronLeft, Bookmark, Flag, AlertTriangle, CheckCircle, ExternalLink, ShieldAlert } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { ChevronLeft, Bookmark, Flag, AlertTriangle, CheckCircle, ExternalLink, ShieldAlert, Share2, Clock } from "lucide-react";
 import { Article } from "../types.js";
 import { motion, AnimatePresence } from "motion/react";
 
@@ -71,6 +71,22 @@ export default function ArticleDetailView({
   const [reportSuccess, setReportSuccess] = useState(false);
   const [savingLoading, setSavingLoading] = useState(false);
 
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [showShareToast, setShowShareToast] = useState(false);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (totalHeight > 0) {
+        const progress = (window.scrollY / totalHeight) * 100;
+        setScrollProgress(progress);
+      }
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   const handleToggleSave = async () => {
     if (!isAuthenticated) {
       alert("Please log in or sign up first to bookmark articles!");
@@ -79,6 +95,31 @@ export default function ArticleDetailView({
     setSavingLoading(true);
     await onToggleSave(article.id);
     setSavingLoading(false);
+  };
+
+  const handleShare = async () => {
+    const slug = article.slug || article.title.toLowerCase().trim().replace(/[\s_-]+/g, "-");
+    const shareUrl = `${window.location.origin}/articles/${slug}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: article.title,
+          text: article.summary,
+          url: shareUrl,
+        });
+      } catch (err) {
+        console.log("Web Share cancelled or failed", err);
+      }
+    } else {
+      try {
+        await navigator.clipboard.writeText(shareUrl);
+        setShowShareToast(true);
+        setTimeout(() => setShowShareToast(false), 2500);
+      } catch (err) {
+        console.error("Clipboard copy failed", err);
+      }
+    }
   };
 
   const handleSubmitReport = async (e: React.FormEvent) => {
@@ -109,6 +150,14 @@ export default function ArticleDetailView({
 
         <div className="flex items-center gap-2">
           <button
+            onClick={handleShare}
+            className="p-2.5 rounded-full border border-gray-200 bg-white text-gray-400 hover:text-medical-600 hover:border-medical-100 hover:bg-medical-50 focus:outline-none transition-all"
+            title="Share Article Link"
+          >
+            <Share2 className="w-5 h-5" />
+          </button>
+
+          <button
             onClick={handleToggleSave}
             disabled={savingLoading}
             className={`p-2.5 rounded-full border focus:outline-none transition-all ${
@@ -129,6 +178,14 @@ export default function ArticleDetailView({
             <Flag className="w-5 h-5" />
           </button>
         </div>
+
+        {/* Visual Reading Progress Bar */}
+        <div className="absolute bottom-0 left-0 h-[3px] bg-medical-50 w-full">
+          <div
+            className="h-full bg-medical-500 transition-all duration-75 ease-out shadow-[0_0_8px_rgba(14,165,233,0.5)]"
+            style={{ width: `${scrollProgress}%` }}
+          />
+        </div>
       </div>
 
       {/* Main Content Area */}
@@ -136,6 +193,10 @@ export default function ArticleDetailView({
         <div className="flex items-center gap-2 mb-3">
           <span className="bg-medical-50 text-medical-700 text-xs font-bold px-2.5 py-1 rounded-lg uppercase tracking-wide">
             {article.category}
+          </span>
+          <span className="bg-gray-50 text-gray-500 text-xs font-bold px-2.5 py-1 rounded-lg flex items-center gap-1">
+            <Clock className="w-3.5 h-3.5" />
+            {article.readTime || 5} min read
           </span>
           {!article.approved && (
             <span className="bg-amber-50 text-amber-700 text-xs font-bold px-2.5 py-1 rounded-lg border border-amber-100">
@@ -197,6 +258,20 @@ export default function ArticleDetailView({
       </div>
 
       {/* Flag / Moderation Reporting Modal Overlay */}
+      <AnimatePresence>
+        {showShareToast && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-50 bg-gray-900 text-white text-xs font-bold py-2.5 px-4 rounded-full shadow-lg flex items-center gap-1.5 border border-gray-800"
+          >
+            <CheckCircle className="w-4 h-4 text-emerald-400" />
+            <span>Article link copied to clipboard!</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <AnimatePresence>
         {showReportModal && (
           <div className="fixed inset-0 z-50 flex items-end justify-center sm:items-center bg-black/50 backdrop-blur-sm p-4">

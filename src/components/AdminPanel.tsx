@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Sparkles, FileText, Flag, AlertTriangle, PlusCircle, Check, Trash2, Edit3, X, RefreshCw, ExternalLink, Award } from "lucide-react";
 import { Article, Report, VerificationRequest } from "../types.js";
 import { motion, AnimatePresence } from "motion/react";
+import ClockWheelPicker from "./ClockWheelPicker.js";
 
 interface AdminPanelProps {
   articles: Article[];
@@ -30,6 +31,7 @@ export default function AdminPanel({ articles, onRefreshArticles, token }: Admin
   const [formApproved, setFormApproved] = useState(true);
   const [formSubmitting, setFormSubmitting] = useState(false);
   const [isGeneratingTags, setIsGeneratingTags] = useState(false);
+  const [formReadTime, setFormReadTime] = useState(5);
 
   // Verification requests states
   const [verifications, setVerifications] = useState<VerificationRequest[]>([]);
@@ -245,7 +247,8 @@ export default function AdminPanel({ articles, onRefreshArticles, token }: Admin
       tags: tagsArray,
       content: formContent,
       source: formSource || "Self-published",
-      approved: formApproved
+      approved: formApproved,
+      readTime: formReadTime
     };
 
     try {
@@ -287,6 +290,7 @@ export default function AdminPanel({ articles, onRefreshArticles, token }: Admin
     setFormContent(article.content);
     setFormSource(article.source);
     setFormApproved(article.approved);
+    setFormReadTime(article.readTime || 5);
     setIsEditing(true);
     setExtractedDraft(null); // Clear any draft to avoid confusion
     setActiveSubTab("extract"); // Share extract form for editing
@@ -336,6 +340,7 @@ export default function AdminPanel({ articles, onRefreshArticles, token }: Admin
     setFormContent("");
     setFormSource("");
     setFormApproved(true);
+    setFormReadTime(5);
     setIsEditing(false);
   };
 
@@ -532,17 +537,26 @@ export default function AdminPanel({ articles, onRefreshArticles, token }: Admin
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
-                  Source Reference
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={formSource}
-                  onChange={(e) => setFormSource(e.target.value)}
-                  className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2 px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-medical-500"
-                />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-500 uppercase mb-1">
+                    Source Reference
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={formSource}
+                    onChange={(e) => setFormSource(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-200 rounded-xl py-2 px-3 text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-medical-500"
+                  />
+                </div>
+                <div className="flex justify-center md:justify-end">
+                  <ClockWheelPicker
+                    value={formReadTime}
+                    onChange={setFormReadTime}
+                    colorTheme="medical"
+                  />
+                </div>
               </div>
 
               <div>

@@ -8,9 +8,10 @@ interface DoctorHubViewProps {
   articles: Article[];
   token: string;
   onRefreshArticles: () => void;
+  onNavigateSettings?: () => void;
 }
 
-export default function DoctorHubView({ user, articles, token, onRefreshArticles }: DoctorHubViewProps) {
+export default function DoctorHubView({ user, articles, token, onRefreshArticles, onNavigateSettings }: DoctorHubViewProps) {
   const [doctorTab, setDoctorTab] = useState<"add" | "edit">("add");
   const [doctorLoading, setDoctorLoading] = useState(false);
   const [doctorSuccess, setDoctorSuccess] = useState<string | null>(null);
@@ -225,6 +226,33 @@ export default function DoctorHubView({ user, articles, token, onRefreshArticles
           </button>
         </div>
       </div>
+
+      {/* Complete Professional Profile Warning/Banner */}
+      {(!user?.doctorProfile?.phone || !user?.doctorProfile?.email) && (
+        <div className="bg-amber-50 border border-amber-200 rounded-3xl p-4.5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 shadow-sm animate-fade-in">
+          <div className="flex items-start gap-3">
+            <div className="bg-amber-500 text-white p-2.5 rounded-2xl shrink-0 mt-0.5 shadow-sm">
+              <AlertCircle className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <h3 className="text-xs font-extrabold text-amber-950 uppercase tracking-wide">
+                Complete Your Professional Profile
+              </h3>
+              <p className="text-[11px] text-amber-800 leading-relaxed mt-1 font-semibold">
+                Your professional profile details (such as phone number and clinic email) are currently incomplete. We highly recommend adding these so patients can reference your practice correctly.
+              </p>
+            </div>
+          </div>
+          {onNavigateSettings && (
+            <button
+              onClick={onNavigateSettings}
+              className="bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-[10px] px-4 py-2.5 rounded-xl transition-all shadow-md active:translate-y-[1px] whitespace-nowrap"
+            >
+              Configure Settings
+            </button>
+          )}
+        </div>
+      )}
 
       {/* Message banners */}
       {doctorError && (

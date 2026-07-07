@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { 
   Settings, User, Lock, Globe, LogOut, Check, Palette, 
   Bell, HelpCircle, ShieldAlert, Award, ChevronRight, Activity,
-  Upload, Trash2, ShieldCheck, CheckCircle2, Clock
+  Upload, Trash2, ShieldCheck, CheckCircle2, Clock, Stethoscope
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
 import { useTranslation } from "../localization.js";
@@ -35,6 +35,12 @@ export default function SettingsView({ user, onLogout, token, onRefreshProfile }
   const [selectedTheme, setSelectedTheme] = useState(user?.settings?.theme || "botanical");
   const [notifications, setNotifications] = useState(user?.settings?.notifications !== false);
 
+  // Patient Doctor Preferences
+  const [doctorContactNum, setDoctorContactNum] = useState(user?.settings?.doctorContactNum || "");
+  const [doctorContactMethod, setDoctorContactMethod] = useState<'whatsapp' | 'sms'>(user?.settings?.doctorContactMethod || "whatsapp");
+  const [savingDoctorPrefs, setSavingDoctorPrefs] = useState(false);
+  const [docPrefsSuccess, setDocPrefsSuccess] = useState<string | null>(null);
+
   // Doctor profile fields
   const [specialty, setSpecialty] = useState(user?.doctorProfile?.specialty || "general practice");
   const [profilePic, setProfilePic] = useState(user?.doctorProfile?.profilePicture || "");
@@ -58,6 +64,12 @@ export default function SettingsView({ user, onLogout, token, onRefreshProfile }
     }
     if (user?.settings?.notifications !== undefined) {
       setNotifications(user.settings.notifications !== false);
+    }
+    if (user?.settings?.doctorContactNum !== undefined) {
+      setDoctorContactNum(user.settings.doctorContactNum || "");
+    }
+    if (user?.settings?.doctorContactMethod !== undefined) {
+      setDoctorContactMethod(user.settings.doctorContactMethod || "whatsapp");
     }
     if (user?.doctorProfile) {
       setSpecialty(user.doctorProfile.specialty || "general practice");
@@ -536,6 +548,107 @@ export default function SettingsView({ user, onLogout, token, onRefreshProfile }
             </div>
           )}
         </div>
+
+        {/* SECTION 2.5: Primary Care Doctor Settings */}
+        {user?.role === "user" && (
+          <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm space-y-4 animate-fade-in">
+            <h2 className="text-xs font-extrabold uppercase tracking-wider text-gray-400 flex items-center gap-1.5">
+              <Stethoscope className="w-4 h-4 text-medical-600" /> Primary Care Doctor Contact
+            </h2>
+            <p className="text-[10px] text-gray-400">
+              Manage your doctor's contact details. The AI Chat assistant uses this information to help you format symptom summaries and open direct contact paths.
+            </p>
+
+            <div className="space-y-3.5 pt-1">
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  Doctor's Phone Number
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g., +15550199 or local number"
+                  value={doctorContactNum}
+                  onChange={(e) => setDoctorContactNum(e.target.value)}
+                  className="w-full bg-gray-50/60 border border-gray-100 rounded-xl py-2 px-3 text-xs text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-medical-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-gray-400 uppercase tracking-wider mb-2">
+                  Preferred Contact Method
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setDoctorContactMethod("whatsapp")}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-2xl border text-center transition-all font-bold text-xs ${
+                      doctorContactMethod === "whatsapp"
+                        ? "border-emerald-500 bg-emerald-50/50 text-emerald-800"
+                        : "border-gray-100 hover:bg-gray-50 bg-white text-gray-600"
+                    }`}
+                  >
+                    <span>WhatsApp</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDoctorContactMethod("sms")}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-2xl border text-center transition-all font-bold text-xs ${
+                      doctorContactMethod === "sms"
+                        ? "border-blue-500 bg-blue-50/50 text-blue-800"
+                        : "border-gray-100 hover:bg-gray-50 bg-white text-gray-600"
+                    }`}
+                  >
+                    <span>SMS / Message</span>
+                  </button>
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={async () => {
+                  setSavingDoctorPrefs(true);
+                  setDocPrefsSuccess(null);
+                  try {
+                    const res = await fetch("/api/auth/settings", {
+                      method: "PUT",
+                      headers: {
+                        "Content-Type": "application/json",
+                        "Authorization": `Bearer ${token}`
+                      },
+                      body: JSON.stringify({
+                        theme: selectedTheme,
+                        language: selectedLang,
+                        notifications: notifications,
+                        doctorContactNum: doctorContactNum,
+                        doctorContactMethod: doctorContactMethod
+                      })
+                    });
+                    if (res.ok) {
+                      setDocPrefsSuccess("Doctor contact updated successfully!");
+                      await onRefreshProfile();
+                    } else {
+                      setDocPrefsSuccess("Failed to update doctor details.");
+                    }
+                  } catch (err) {
+                    setDocPrefsSuccess("Network error saving preferences.");
+                  } finally {
+                    setSavingDoctorPrefs(false);
+                  }
+                }}
+                disabled={savingDoctorPrefs}
+                className="w-full bg-medical-600 hover:bg-medical-700 text-white font-bold py-2.5 px-3 rounded-xl text-xs transition-colors flex items-center justify-center gap-1 shadow-sm"
+              >
+                {savingDoctorPrefs ? "Saving..." : "Update Doctor Contact Info"}
+              </button>
+
+              {docPrefsSuccess && (
+                <div className="bg-medical-50/50 text-medical-800 text-[10px] py-1.5 px-3 rounded-lg border border-medical-100 font-semibold text-center mt-2">
+                  {docPrefsSuccess}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* SECTION 3: Account Security & Password */}
         <div className="bg-white border border-gray-100 rounded-3xl p-5 shadow-sm space-y-4">

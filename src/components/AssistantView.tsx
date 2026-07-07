@@ -1,10 +1,10 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Sparkles, HelpCircle, Activity, Info, ChevronRight, AlertTriangle } from "lucide-react";
-import { ChatMessage, Article } from "../types.js";
-import { motion, AnimatePresence } from "motion/react";
+import { Send, Sparkles, ChevronRight, Activity, AlertTriangle, FileText, Check, MessageSquare, Phone, ArrowRight, X } from "lucide-react";
+import { ChatMessage, Article, User } from "../types.js";
 import { useTranslation } from "../localization.js";
 
 interface AssistantViewProps {
+  user: User | null;
   chatHistory: ChatMessage[];
   onSendMessage: (text: string) => Promise<void>;
   onSelectArticle: (article: Article) => void;
@@ -14,6 +14,7 @@ interface AssistantViewProps {
 }
 
 export default function AssistantView({
+  user,
   chatHistory,
   onSendMessage,
   onSelectArticle,
@@ -24,6 +25,16 @@ export default function AssistantView({
   const { t } = useTranslation(lang);
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Announcement and Doctor Summary States
+  const [showAnnouncement, setShowAnnouncement] = useState(() => {
+    return localStorage.getItem("paeonix_hide_chat_feature_announcement_v1") !== "true";
+  });
+  const [generatingSummary, setGeneratingSummary] = useState(false);
+  const [doctorSummary, setDoctorSummary] = useState<string | null>(null);
+  const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [showSummaryPanel, setShowSummaryPanel] = useState(false);
+  const [copied, setCopied] = useState(false);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -36,6 +47,78 @@ export default function AssistantView({
     setInputText("");
   };
 
+  const handleDismissAnnouncement = () => {
+    setShowAnnouncement(false);
+    localStorage.setItem("paeonix_hide_chat_feature_announcement_v1", "true");
+  };
+
+  const handleGenerateSummary = async () => {
+    if (chatHistory.length === 0) return;
+    setGeneratingSummary(true);
+    setSummaryError(null);
+    setDoctorSummary(null);
+    setShowSummaryPanel(true);
+
+    try {
+      const res = await fetch("/api/ai/summarize-for-doctor", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          history: chatHistory,
+          language: lang
+        })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setDoctorSummary(data.summaryMessage);
+      } else {
+        const err = await res.json();
+        setSummaryError(err.error || "Failed to generate summary.");
+      }
+    } catch (err) {
+      setSummaryError("Could not reach communication gateway. Please try again.");
+    } finally {
+      setGeneratingSummary(false);
+    }
+  };
+
+  const handleCopyToClipboard = async () => {
+    if (!doctorSummary) return;
+    try {
+      await navigator.clipboard.writeText(doctorSummary);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch (err) {
+      console.error("Failed to copy", err);
+    }
+  };
+
+  // Contact parameters
+  const docNum = user?.settings?.doctorContactNum || "";
+  const docMethod = user?.settings?.doctorContactMethod || "whatsapp";
+  const cleanPhone = docNum.replace(/[^\d]/g, "");
+
+  const handleContactDoctor = () => {
+    if (!doctorSummary) return;
+    
+    // Check if number was configured
+    if (!cleanPhone) {
+      alert("Please configure your doctor's contact number first in your profile settings!");
+      return;
+    }
+
+    if (docMethod === "whatsapp") {
+      const waUrl = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(doctorSummary)}`;
+      window.open(waUrl, "_blank");
+    } else {
+      const smsUrl = `sms:${cleanPhone}?body=${encodeURIComponent(doctorSummary)}`;
+      window.open(smsUrl, "_blank");
+    }
+  };
+
   const sampleQuestions = [
     "What are the warning signs of type 2 diabetes?",
     "How does physical activity help reduce high blood pressure?",
@@ -44,7 +127,8 @@ export default function AssistantView({
   ];
 
   return (
-    <div className="flex-1 min-h-0 h-full flex flex-col bg-gray-50 pb-20 md:pb-6 animate-fade-in">
+    <div className="flex-1 min-h-0 h-full flex flex-col bg-gray-50 pb-20 md:pb-6 animate-fade-in relative">
+      
       {/* Assistant Header banner */}
       <div className="bg-white border-b border-gray-100 px-4 py-3 sticky top-0 z-10 flex items-center justify-between shadow-sm shrink-0">
         <div className="flex items-center gap-2">
@@ -65,6 +149,42 @@ export default function AssistantView({
           {t("chatDisclaimer")}
         </p>
       </div>
+
+      {/* NEW FEATURE ANNOUNCEMENT / ADVERTISEMENT */}
+      {showAnnouncement && (
+        <div className="bg-gradient-to-r from-medical-500/10 to-medical-500/5 border-b border-medical-100 p-4 animate-fade-in relative overflow-hidden shrink-0">
+          <button
+            onClick={handleDismissAnnouncement}
+            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-all p-1 rounded-full hover:bg-gray-100/50"
+            title="Dismiss Announcement"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          
+          <div className="flex items-start gap-3 max-w-2xl">
+            <div className="bg-medical-500 text-white p-2 rounded-xl shrink-0 shadow-sm mt-0.5">
+              <Sparkles className="w-4 h-4" />
+            </div>
+            <div className="pr-6">
+              <div className="flex items-center gap-2">
+                <span className="bg-medical-600 text-white text-[8px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  New Update
+                </span>
+                <span className="text-[10px] text-medical-700 font-bold">Secure AI Doctor Integration</span>
+              </div>
+              <h3 className="text-xs font-bold text-gray-900 mt-1.5">
+                Improve Patient-Doctor Communication
+              </h3>
+              <p className="text-[11px] text-gray-600 mt-1 leading-relaxed">
+                Paeonix AI is structured purely to **improve communication** with your doctor. Our AI **does not diagnose conditions**, prescribe medicines, or replace professional care.
+              </p>
+              <p className="text-[11px] text-gray-600 mt-1.5 leading-relaxed">
+                Instead, it simplifies clinical terminology, organizes your personal concerns, and generates **structured symptom summaries** in your selected language ({lang.toUpperCase()}) ready to be sent to your doctor in one tap.
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Message List area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
@@ -96,6 +216,24 @@ export default function AssistantView({
           </div>
         ) : (
           <div className="space-y-4">
+            
+            {/* Clinical summary helper card at top of active chat history */}
+            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-3 animate-fade-in">
+              <div className="flex items-center gap-2.5 min-w-0">
+                <FileText className="w-5 h-5 text-medical-500 shrink-0" />
+                <div className="min-w-0">
+                  <h4 className="text-xs font-bold text-gray-800">Format Doctor Summary</h4>
+                  <p className="text-[10px] text-gray-400 truncate">Synthesize these symptoms for your doctor</p>
+                </div>
+              </div>
+              <button
+                onClick={handleGenerateSummary}
+                className="bg-medical-600 hover:bg-medical-700 text-white font-extrabold text-[10px] px-3 py-1.5 rounded-xl transition-all shadow-sm focus:outline-none whitespace-nowrap"
+              >
+                Summarize Conversation
+              </button>
+            </div>
+
             {chatHistory.map((msg) => {
               const isAssistant = msg.sender === "assistant";
               return (
@@ -159,6 +297,95 @@ export default function AssistantView({
         )}
         <div ref={messagesEndRef} />
       </div>
+
+      {/* DOCTOR CLINICAL SUMMARY FLOATING DIALOG */}
+      {showSummaryPanel && (
+        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs z-20 flex items-end justify-center p-4">
+          <div className="bg-white rounded-t-3xl md:rounded-3xl border border-gray-100 shadow-2xl w-full max-w-lg p-6 space-y-4 animate-fade-in-up">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <FileText className="w-5 h-5 text-medical-600" />
+                <h3 className="text-sm font-bold text-gray-900">Your Structured Clinical Summary</h3>
+              </div>
+              <button
+                onClick={() => setShowSummaryPanel(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="bg-amber-50/50 border border-amber-100 rounded-xl p-3 flex items-start gap-2 text-[10px] text-amber-800">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+              <p className="font-semibold leading-relaxed">
+                This message was structured based on your conversation. It describes symptoms, concerns, and timeline. It does not provide any diagnosis or medical conclusion.
+              </p>
+            </div>
+
+            {generatingSummary ? (
+              <div className="flex flex-col items-center justify-center py-12 space-y-3">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-medical-500" />
+                <p className="text-xs text-gray-500">Formulating professional summary message...</p>
+              </div>
+            ) : summaryError ? (
+              <div className="bg-rose-50 border border-rose-100 text-rose-700 p-4 rounded-xl text-xs text-center">
+                {summaryError}
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <textarea
+                  value={doctorSummary || ""}
+                  onChange={(e) => setDoctorSummary(e.target.value)}
+                  className="w-full h-44 bg-gray-50 border border-gray-100 rounded-2xl p-4 text-xs text-gray-800 focus:outline-none focus:ring-2 focus:ring-medical-500 leading-relaxed font-sans"
+                />
+
+                <div className="bg-gray-50/80 rounded-2xl p-3.5 border border-gray-100 flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2 min-w-0">
+                    {docMethod === "whatsapp" ? (
+                      <MessageSquare className="w-5 h-5 text-emerald-600 shrink-0" />
+                    ) : (
+                      <Phone className="w-5 h-5 text-blue-600 shrink-0" />
+                    )}
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Contact Target</p>
+                      <p className="text-xs font-bold text-gray-700 truncate">
+                        {docNum ? `${docNum} (${docMethod.toUpperCase()})` : "No primary care doctor registered"}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={handleCopyToClipboard}
+                    className="text-[10px] font-bold text-medical-700 bg-white border border-gray-200 px-3 py-1.5 rounded-xl hover:bg-gray-50 shadow-sm transition-all whitespace-nowrap"
+                  >
+                    {copied ? "Copied!" : "Copy Text"}
+                  </button>
+                </div>
+
+                <button
+                  onClick={handleContactDoctor}
+                  disabled={!docNum}
+                  className={`w-full py-3 px-4 rounded-xl font-extrabold text-xs text-white transition-all flex items-center justify-center gap-2 shadow-md ${
+                    !docNum 
+                      ? "bg-gray-300 cursor-not-allowed shadow-none" 
+                      : docMethod === "whatsapp"
+                        ? "bg-emerald-600 hover:bg-emerald-700"
+                        : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  <span>Send to Primary Care Doctor via {docMethod === "whatsapp" ? "WhatsApp" : "SMS"}</span>
+                  <ArrowRight className="w-4 h-4" />
+                </button>
+                
+                {!docNum && (
+                  <p className="text-[9px] text-center font-bold text-rose-500 uppercase tracking-wide">
+                    ⚠️ Setup Required: Please add your doctor's contact number in Settings first.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Input Form footer bar */}
       <form onSubmit={handleSend} className="bg-white border-t border-gray-100 p-3 shrink-0 flex flex-col gap-2">

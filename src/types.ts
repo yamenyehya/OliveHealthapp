@@ -34,6 +34,8 @@ export interface User {
     theme?: string;
     language?: string;
     notifications?: boolean;
+    doctorContactNum?: string;
+    doctorContactMethod?: 'whatsapp' | 'sms';
   };
   verificationStatus?: 'pending' | 'accepted' | 'declined' | null;
   verificationDeclinedAt?: string | null;

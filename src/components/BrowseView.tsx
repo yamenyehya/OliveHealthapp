@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Search, ChevronRight, BookOpen } from "lucide-react";
+import { Search, ChevronRight, BookOpen, Sparkles, MessageSquare } from "lucide-react";
 import { Article } from "../types.js";
 import { motion } from "motion/react";
 import { useTranslation } from "../localization.js";
@@ -10,12 +10,16 @@ interface BrowseViewProps {
   onSelectArticle: (article: Article) => void;
   loading: boolean;
   lang?: string;
+  onTryAIChat?: () => void;
 }
 
-export default function BrowseView({ articles, onSelectArticle, loading, lang = "en" }: BrowseViewProps) {
+export default function BrowseView({ articles, onSelectArticle, loading, lang = "en", onTryAIChat }: BrowseViewProps) {
   const { t } = useTranslation(lang);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All Topics");
+  const [showFeatureAd, setShowFeatureAd] = useState(() => {
+    return localStorage.getItem("paeonix_hide_chat_feature_ad_v1") !== "true";
+  });
 
   const categoryLabelMap: Record<string, string> = {
     "All Topics": t("allTopics"),
@@ -147,6 +151,57 @@ export default function BrowseView({ articles, onSelectArticle, loading, lang = 
               >
                 {t("learnMore")}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Secure AI Chat Update Advertisement Box */}
+        {selectedCategory === "All Topics" && !searchQuery && showFeatureAd && (
+          <div className="bg-white border border-gray-100 rounded-3xl p-5 mb-5 shadow-sm relative overflow-hidden animate-fade-in">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowFeatureAd(false);
+                localStorage.setItem("paeonix_hide_chat_feature_ad_v1", "true");
+              }}
+              className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-all p-1 rounded-full hover:bg-gray-50"
+              title="Dismiss ad"
+            >
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+
+            <div className="flex items-start gap-3.5">
+              <div className="bg-medical-50 text-medical-600 p-2.5 rounded-2xl shrink-0 mt-0.5 shadow-inner">
+                <Sparkles className="w-5 h-5 text-medical-500" />
+              </div>
+              <div className="pr-4">
+                <div className="flex items-center gap-1.5">
+                  <span className="bg-medical-100 text-medical-800 text-[8px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    NEW FEATURE UPDATE
+                  </span>
+                </div>
+                <h3 className="text-xs font-bold text-gray-900 mt-2">
+                  Clinical AI Communication Assistant
+                </h3>
+                <p className="text-[11px] text-gray-500 mt-1.5 leading-relaxed">
+                  Paeonix has introduced a high-security Clinical AI Chat designed to <strong>improve communication between patients and their doctors</strong>.
+                </p>
+                <p className="text-[11px] text-gray-500 mt-1.5 leading-relaxed">
+                  The AI is fully restricted from diagnosing, prescribing, or replacing professional clinical oversight. Its purpose is to help you understand medical information, translate complex terminology, organize your symptom timeline, and automatically prepare a **structured message in your language** ({lang.toUpperCase()}) to share directly with your doctor.
+                </p>
+
+                {onTryAIChat && (
+                  <button
+                    onClick={onTryAIChat}
+                    className="mt-4 flex items-center gap-1.5 bg-medical-600 hover:bg-medical-700 text-white font-extrabold text-[10px] px-3.5 py-2 rounded-xl transition-all shadow-sm focus:outline-none"
+                  >
+                    <MessageSquare className="w-3.5 h-3.5" />
+                    <span>Launch AI Chat Assistant</span>
+                  </button>
+                )}
+              </div>
             </div>
           </div>
         )}

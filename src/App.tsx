@@ -14,6 +14,7 @@ import DoctorHubView from "./components/DoctorHubView.js";
 import AdminHubView from "./components/AdminHubView.js";
 import { CookieBanner, LegalModal } from "./components/LegalViews.js";
 import { PaeonixLogo } from "./components/PaeonixLogo.js";
+import RequiredDoctorSetupModal from "./components/RequiredDoctorSetupModal.js";
 
 const THEME_COLORS: Record<string, Record<string, string>> = {
   botanical: {
@@ -596,11 +597,13 @@ export default function App() {
                   onSelectArticle={handleSelectArticle}
                   loading={articlesLoading}
                   lang={user?.settings?.language || "en"}
+                  onTryAIChat={() => setActiveTab("assistant")}
                 />
               )}
 
               {activeTab === "assistant" && (
                 <AssistantView
+                  user={user}
                   chatHistory={chatHistory}
                   onSendMessage={handleSendChatMessage}
                   onSelectArticle={handleSelectArticle}
@@ -633,6 +636,7 @@ export default function App() {
                   articles={articles}
                   token={token || ""}
                   onRefreshArticles={fetchArticles}
+                  onNavigateSettings={() => setActiveTab("settings")}
                 />
               )}
 
@@ -717,6 +721,11 @@ export default function App() {
       </div>
 
       {/* Global Modals and Banners */}
+      <RequiredDoctorSetupModal
+        isOpen={!!(user && user.role === "user" && (!user.settings?.doctorContactNum || !user.settings?.doctorContactMethod))}
+        token={token || ""}
+        onRefreshProfile={fetchProfile}
+      />
       <CookieBanner onAccept={() => {}} />
       <LegalModal
         isOpen={isLegalOpen}

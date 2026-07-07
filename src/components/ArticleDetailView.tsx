@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { ChevronLeft, Bookmark, Flag, AlertTriangle, CheckCircle, ExternalLink, ShieldAlert, Share2, Clock } from "lucide-react";
 import { Article } from "../types.js";
 import { motion, AnimatePresence } from "motion/react";
@@ -73,18 +73,48 @@ export default function ArticleDetailView({
 
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showShareToast, setShowShareToast] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const handleScroll = () => {
-      const totalHeight = document.documentElement.scrollHeight - window.innerHeight;
-      if (totalHeight > 0) {
-        const progress = (window.scrollY / totalHeight) * 100;
-        setScrollProgress(progress);
+      // 1. Measure window scroll progress
+      const winTotalHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const winProgress = winTotalHeight > 0 ? (window.scrollY / winTotalHeight) * 100 : 0;
+
+      // 2. Measure local container scroll progress (for scrollable overlay containers)
+      let localProgress = 0;
+      if (containerRef.current) {
+        const parent = containerRef.current.parentElement;
+        if (parent) {
+          const localTotalHeight = parent.scrollHeight - parent.clientHeight;
+          if (localTotalHeight > 0) {
+            localProgress = (parent.scrollTop / localTotalHeight) * 100;
+          }
+        }
       }
+
+      setScrollProgress(Math.max(winProgress, localProgress));
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    return () => window.removeEventListener("scroll", handleScroll);
+    
+    let parentEl: HTMLElement | null = null;
+    if (containerRef.current) {
+      parentEl = containerRef.current.parentElement;
+      if (parentEl) {
+        parentEl.addEventListener("scroll", handleScroll, { passive: true });
+      }
+    }
+
+    // Trigger initial calculation
+    handleScroll();
+
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      if (parentEl) {
+        parentEl.removeEventListener("scroll", handleScroll);
+      }
+    };
   }, []);
 
   const handleToggleSave = async () => {
@@ -138,7 +168,15 @@ export default function ArticleDetailView({
   };
 
   return (
-    <div className="pb-24 bg-white animate-fade-in">
+    <div ref={containerRef} className="pb-24 bg-white animate-fade-in relative">
+      {/* Visual Reading Progress Bar - Sticky / Fixed at the very top of screen */}
+      <div className="fixed top-0 left-0 w-full h-[4px] bg-medical-50/40 z-[9999] pointer-events-none">
+        <div
+          className="h-full bg-medical-500 transition-all duration-75 ease-out shadow-[0_0_8px_rgba(14,165,233,0.5)]"
+          style={{ width: `${scrollProgress}%` }}
+        />
+      </div>
+
       {/* Article Top Navigation bar */}
       <div className="sticky top-0 bg-white/90 backdrop-blur-md border-b border-gray-100 px-4 py-3 flex items-center justify-between z-30">
         <button
@@ -177,14 +215,6 @@ export default function ArticleDetailView({
           >
             <Flag className="w-5 h-5" />
           </button>
-        </div>
-
-        {/* Visual Reading Progress Bar */}
-        <div className="absolute bottom-0 left-0 h-[3px] bg-medical-50 w-full">
-          <div
-            className="h-full bg-medical-500 transition-all duration-75 ease-out shadow-[0_0_8px_rgba(14,165,233,0.5)]"
-            style={{ width: `${scrollProgress}%` }}
-          />
         </div>
       </div>
 

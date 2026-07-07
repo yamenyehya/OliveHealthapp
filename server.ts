@@ -791,7 +791,7 @@ app.delete("/api/doctors/:id/reviews/:reviewId", authenticateToken, async (req: 
 
 // Update Settings / Preferences
 app.put("/api/auth/settings", authenticateToken, async (req: any, res: any) => {
-  const { theme, language, notifications } = req.body;
+  const { theme, language, notifications, doctorContactNum, doctorContactMethod } = req.body;
   try {
     const user = await getUserById(req.user.id);
     if (!user) {
@@ -801,7 +801,9 @@ app.put("/api/auth/settings", authenticateToken, async (req: any, res: any) => {
     const updatedSettings = {
       theme: theme !== undefined ? theme : (user.settings?.theme || "botanical"),
       language: language !== undefined ? language : (user.settings?.language || "en"),
-      notifications: notifications !== undefined ? notifications : (user.settings?.notifications !== false)
+      notifications: notifications !== undefined ? notifications : (user.settings?.notifications !== false),
+      doctorContactNum: doctorContactNum !== undefined ? doctorContactNum : (user.settings?.doctorContactNum || ""),
+      doctorContactMethod: doctorContactMethod !== undefined ? doctorContactMethod : (user.settings?.doctorContactMethod || "whatsapp")
     };
 
     const updated = await updateUser(user.id, { settings: updatedSettings });
@@ -1229,6 +1231,61 @@ If no database articles are matching, return suggestedArticles as an empty array
   } catch (err: any) {
     console.error("AI Assistant Chat failed:", err);
     res.status(500).json({ error: `Assistant offline: ${err.message || "Please check your clinical AI gateway configurations."}` });
+  }
+});
+
+// AI Doctor Summary Message synthesis
+app.post("/api/ai/summarize-for-doctor", async (req: any, res: any) => {
+  const { history, language } = req.body;
+  if (!history || !Array.isArray(history) || history.length === 0) {
+    return res.status(400).json({ error: "Conversation history is required." });
+  }
+
+  const langCode = language || "en";
+
+  try {
+    const gemini = getGeminiClient();
+
+    const systemInstruction = `You are an expert Clinical Communications Assistant.
+Your task is to synthesize a clear, professional, and well-organized summary message based on the patient's conversation with our AI health assistant.
+This message is intended for the patient to send directly to their primary care doctor via WhatsApp or SMS to facilitate clear clinical communication.
+
+STRICT REQUIREMENTS:
+1. FOCUS PURELY ON: Describing symptoms, concerns, timeline, severity, and other patient-reported relevant details.
+2. ABSOLUTE FORBIDDEN: Do NOT include any diagnosis, medical conclusion, prescription, or clinical decision.
+3. LANGUAGE: Generate the message completely in the requested language: "${langCode}" (e.g. "en" for English, "es" for Spanish, "fr" for French, "ar" for Arabic). Use a respectful, clear patient-to-doctor tone.
+4. STRUCTURE: Keep it concise, organized with simple bullet points, and ready to send. Keep it within a reasonable length for WhatsApp/SMS. No markdown links or complex syntax. It should start with a polite greeting to the doctor.`;
+
+    const chatContent = history.map((msg: any) => `${msg.sender === "user" ? "Patient" : "Assistant"}: ${msg.text}`).join("\n");
+
+    const prompt = `Based on this patient conversation:
+"""
+${chatContent}
+"""
+
+Synthesize the ready-to-send doctor message now.`;
+
+    const response = await gemini.models.generateContent({
+      model: "gemini-3.5-flash",
+      contents: prompt,
+      config: {
+        systemInstruction,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          required: ["summaryMessage"],
+          properties: {
+            summaryMessage: { type: Type.STRING }
+          }
+        }
+      }
+    });
+
+    const output = JSON.parse(response.text || "{}");
+    res.json(output);
+  } catch (err: any) {
+    console.error("AI Doctor Summary synthesis failed:", err);
+    res.status(500).json({ error: "Failed to generate doctor summary." });
   }
 });
 

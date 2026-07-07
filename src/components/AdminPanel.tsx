@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Sparkles, FileText, Flag, AlertTriangle, PlusCircle, Check, Trash2, Edit3, X, RefreshCw, ExternalLink, Award } from "lucide-react";
+import { Sparkles, FileText, Flag, AlertTriangle, PlusCircle, Check, Trash2, Edit3, X, RefreshCw, ExternalLink, Award, Stethoscope } from "lucide-react";
 import { Article, Report, VerificationRequest } from "../types.js";
 import { motion, AnimatePresence } from "motion/react";
 import ClockWheelPicker from "./ClockWheelPicker.js";
@@ -11,7 +11,69 @@ interface AdminPanelProps {
 }
 
 export default function AdminPanel({ articles, onRefreshArticles, token }: AdminPanelProps) {
-  const [activeSubTab, setActiveSubTab] = useState<"extract" | "manage" | "reports" | "verifications">("extract");
+  const [activeSubTab, setActiveSubTab] = useState<"extract" | "manage" | "reports" | "verifications" | "doctors">("extract");
+
+  // Verified Doctors List State
+  const [doctorsList, setDoctorsList] = useState<any[]>([]);
+  const [doctorsLoading, setDoctorsLoading] = useState(false);
+  const [demoteReasonText, setDemoteReasonText] = useState<{ [id: string]: string }>({});
+  const [showDemoteInput, setShowDemoteInput] = useState<{ [id: string]: boolean }>({});
+
+  const fetchDoctorsList = async () => {
+    setDoctorsLoading(true);
+    try {
+      const res = await fetch("/api/doctors", {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      if (res.ok) {
+        const data = await res.json();
+        setDoctorsList(data);
+      }
+    } catch (err) {
+      console.error("Error loading doctors list:", err);
+    } finally {
+      setDoctorsLoading(false);
+    }
+  };
+
+  const handleDemoteDoctor = async (id: string) => {
+    const reason = demoteReasonText[id] || "";
+    if (!confirm("Are you sure you want to remove this user's verified doctor status? This will demote them back to a standard user.")) return;
+
+    setActionInProgress(id);
+    try {
+      const res = await fetch(`/api/admin/doctors/${id}/demote`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({ reason })
+      });
+
+      if (res.ok) {
+        alert("Doctor status successfully removed!");
+        setDemoteReasonText(prev => {
+          const u = { ...prev };
+          delete u[id];
+          return u;
+        });
+        setShowDemoteInput(prev => {
+          const u = { ...prev };
+          delete u[id];
+          return u;
+        });
+        fetchDoctorsList();
+      } else {
+        const err = await res.json();
+        alert(err.error || "Failed to remove doctor status.");
+      }
+    } catch (err) {
+      alert("Error contacting demotion endpoint.");
+    } finally {
+      setActionInProgress(null);
+    }
+  };
 
   // Ingestion Ingest State
   const [ingestionUrl, setIngestionUrl] = useState("");
@@ -387,6 +449,16 @@ export default function AdminPanel({ articles, onRefreshArticles, token }: Admin
           }`}
         >
           <Award className="w-4 h-4" /> Verifications
+        </button>
+        <button
+          onClick={() => { setActiveSubTab("doctors"); }}
+          className={`flex-1 min-w-[120px] text-center py-2 text-xs font-bold transition-all border-b-2 flex items-center justify-center gap-1.5 shrink-0 ${
+            activeSubTab === "doctors"
+              ? "text-medical-600 border-medical-500 scale-102"
+              : "text-gray-400 border-transparent hover:text-gray-600"
+          }`}
+        >
+          <Stethoscope className="w-4 h-4" /> Verified Doctors
         </button>
       </div>
 
@@ -935,6 +1007,150 @@ export default function AdminPanel({ articles, onRefreshArticles, token }: Admin
                       </div>
                     </div>
                   )}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* --- SUBTAB 5: VERIFIED DOCTORS MANAGER --- */}
+      {activeSubTab === "doctors" && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center px-1">
+            <span className="text-xs font-bold text-gray-400 uppercase">Verified Medical Doctors</span>
+            <button
+              onClick={fetchDoctorsList}
+              className="text-gray-400 hover:text-gray-600 p-1 rounded-lg hover:bg-gray-50 transition-all focus:outline-none"
+            >
+              <RefreshCw className="w-4 h-4" />
+            </button>
+          </div>
+
+          {doctorsLoading ? (
+            <div className="text-center py-12 flex flex-col items-center">
+              <RefreshCw className="w-6 h-6 text-medical-500 animate-spin mb-2" />
+              <p className="text-xs text-gray-400">Loading verified doctors list...</p>
+            </div>
+          ) : doctorsList.length === 0 ? (
+            <div className="text-center py-12 bg-gray-50 rounded-2xl border border-dashed border-gray-100 p-4">
+              <Stethoscope className="w-8 h-8 text-gray-300 mx-auto mb-2" />
+              <h4 className="text-sm font-bold text-gray-700">No Verified Doctors</h4>
+              <p className="text-xs text-gray-400 max-w-xs mx-auto mt-0.5">
+                There are currently no verified medical professionals registered on the platform.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4 max-h-[480px] overflow-y-auto pr-1">
+              {doctorsList.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="border border-gray-100 bg-white rounded-2xl p-4 flex flex-col gap-3.5 transition-all shadow-xs hover:border-gray-200"
+                >
+                  <div className="flex justify-between items-start gap-4 flex-wrap">
+                    <div className="flex items-center gap-3">
+                      {doc.doctorProfile?.profilePicture ? (
+                        <img
+                          src={doc.doctorProfile.profilePicture}
+                          alt={doc.email}
+                          referrerPolicy="no-referrer"
+                          className="w-10 h-10 rounded-full object-cover border border-gray-100"
+                        />
+                      ) : (
+                        <div className="w-10 h-10 rounded-full bg-medical-50 text-medical-600 flex items-center justify-center font-extrabold text-sm border border-medical-100">
+                          Dr
+                        </div>
+                      )}
+                      <div>
+                        <h4 className="text-sm font-extrabold text-gray-800 break-all">{doc.email}</h4>
+                        <span className="text-[10px] font-bold text-medical-600 uppercase tracking-wider bg-medical-50 px-2 py-0.5 rounded mt-0.5 inline-block">
+                          {doc.doctorProfile?.specialty || "General Practice"}
+                        </span>
+                      </div>
+                    </div>
+                    <span className="text-[9px] font-extrabold px-2 py-0.5 rounded uppercase border bg-emerald-50 text-emerald-800 border-emerald-200">
+                      Verified
+                    </span>
+                  </div>
+
+                  {/* Public Contact details */}
+                  <div className="bg-gray-50/50 border border-gray-100/60 rounded-xl p-3 grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    <div>
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">
+                        Clinic Email
+                      </span>
+                      <span className="font-semibold text-gray-700 break-all">{doc.doctorProfile?.email || "Not specified"}</span>
+                    </div>
+                    <div>
+                      <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">
+                        Clinic Phone
+                      </span>
+                      <span className="font-semibold text-gray-700">{doc.doctorProfile?.phone || "Not specified"}</span>
+                    </div>
+                    {doc.doctorProfile?.clinicLocationUrl && (
+                      <div className="sm:col-span-2 pt-1 border-t border-gray-100">
+                        <span className="text-[9px] font-bold text-gray-400 uppercase tracking-wider block">
+                          Clinic Location
+                        </span>
+                        <a
+                          href={doc.doctorProfile.clinicLocationUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="font-semibold text-medical-600 hover:underline flex items-center gap-1 mt-0.5"
+                        >
+                          View Clinic on Google Maps <ExternalLink className="w-3 h-3" />
+                        </a>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Demote actions */}
+                  <div className="space-y-3 pt-2 border-t border-gray-100/50">
+                    {showDemoteInput[doc.id] && (
+                      <div className="space-y-1.5 animate-fade-in">
+                        <label className="block text-[10px] font-bold text-rose-700 uppercase">
+                          Reason for Status Revocation
+                        </label>
+                        <textarea
+                          required
+                          rows={2}
+                          placeholder="Provide a clear, clinical explanation for removing doctor status (e.g. License expired or invalid credential update)."
+                          value={demoteReasonText[doc.id] || ""}
+                          onChange={(e) => setDemoteReasonText(prev => ({ ...prev, [doc.id]: e.target.value }))}
+                          className="w-full bg-white border border-rose-200 focus:ring-1 focus:ring-rose-500 rounded-xl p-2 text-xs text-gray-800 resize-none focus:outline-none"
+                        />
+                      </div>
+                    )}
+
+                    <div className="flex gap-2">
+                      {showDemoteInput[doc.id] ? (
+                        <>
+                          <button
+                            disabled={actionInProgress === doc.id}
+                            onClick={() => setShowDemoteInput(prev => ({ ...prev, [doc.id]: false }))}
+                            className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[10px] font-bold py-2 px-3 rounded-xl transition-colors"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            disabled={actionInProgress === doc.id}
+                            onClick={() => handleDemoteDoctor(doc.id)}
+                            className="flex-1 bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold py-2 px-3 rounded-xl transition-colors shadow-sm"
+                          >
+                            Revoke Status
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          disabled={actionInProgress === doc.id}
+                          onClick={() => setShowDemoteInput(prev => ({ ...prev, [doc.id]: true }))}
+                          className="w-full bg-rose-50 hover:bg-rose-100 text-rose-700 text-[10px] font-bold py-2 px-3 rounded-xl transition-colors flex items-center justify-center gap-1"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" /> Remove Doctor Status
+                        </button>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
             </div>

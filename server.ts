@@ -494,6 +494,42 @@ app.post("/api/admin/verification/requests/:id/action", authenticateToken, requi
   }
 });
 
+// Admin: Demote / Remove doctor status
+app.post("/api/admin/doctors/:id/demote", authenticateToken, requireAdmin, async (req: any, res: any) => {
+  const { id } = req.params;
+  const { reason } = req.body; // optional demotion reason
+  try {
+    const user = await getUserById(id);
+    if (!user) {
+      return res.status(404).json({ error: "Doctor user not found" });
+    }
+    if (user.role !== "doctor") {
+      return res.status(400).json({ error: "User is not a verified doctor." });
+    }
+
+    // Demote user role to 'user'
+    await updateUser(id, {
+      role: "user",
+      verificationStatus: "declined", // set status so they can apply again or stay declined
+      verificationDeclinedAt: new Date().toISOString(),
+      notification: reason 
+        ? `Your verified doctor status has been removed by administrators. Reason: ${reason}`
+        : "Your verified doctor status has been removed by administrators."
+    });
+
+    // Also update any verification requests from this user to 'declined' if any is accepted
+    const requests = await getVerificationRequests();
+    const userReq = requests.find(r => r.userId === id && r.status === "accepted");
+    if (userReq) {
+      await updateVerificationRequest(userReq.id, "declined");
+    }
+
+    res.json({ success: true, message: "Doctor successfully demoted to regular user." });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message || "Failed to demote doctor" });
+  }
+});
+
 // Doctor: Submit Article Draft
 app.post("/api/doctor/articles", authenticateToken, async (req: any, res: any) => {
   if (req.user.role !== "doctor" && req.user.role !== "admin") {

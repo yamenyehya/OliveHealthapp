@@ -1401,10 +1401,12 @@ async function startServer() {
   await initDb();
 
   // Dynamic Sitemap for maximum search engine indexing
-  app.get("/sitemap.xml", async (req, res) => {
+  app.get("/sitemap.xml", async (req: any, res: any) => {
     try {
       const articles = await getArticles(true);
-      const appUrl = process.env.APP_URL || "https://paeonix.onrender.com";
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+      const host = req.get("host") || "paeonix.onrender.com";
+      const appUrl = process.env.APP_URL || `${protocol}://${host}`;
       
       let xml = `<?xml version="1.0" encoding="UTF-8"?>\n`;
       xml += `<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n`;
@@ -1450,8 +1452,10 @@ async function startServer() {
   });
 
   // Dynamic Robots.txt pointing to the dynamic sitemap
-  app.get("/robots.txt", (req, res) => {
-    const appUrl = process.env.APP_URL || "https://paeonix.onrender.com";
+  app.get("/robots.txt", (req: any, res: any) => {
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+    const host = req.get("host") || "paeonix.onrender.com";
+    const appUrl = process.env.APP_URL || `${protocol}://${host}`;
     const robots = `User-agent: *\nAllow: /\nSitemap: ${appUrl}/sitemap.xml\n`;
     res.header("Content-Type", "text/plain");
     res.send(robots);
@@ -1482,7 +1486,10 @@ async function startServer() {
       // Replace title, description, and OpenGraph/Twitter Card metadata
       const title = `${article.title} | PAEONIX Encyclopedia`;
       const description = article.summary;
-      const url = `${process.env.APP_URL || "https://paeonix.onrender.com"}/articles/${slug}`;
+      const protocol = req.headers["x-forwarded-proto"] || req.protocol || "https";
+      const host = req.get("host") || "paeonix.onrender.com";
+      const appUrl = process.env.APP_URL || `${protocol}://${host}`;
+      const url = `${appUrl}/articles/${slug}`;
 
       // Clean existing title
       html = html.replace(/<title>.*?<\/title>/gi, `<title>${title}</title>`);

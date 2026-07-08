@@ -231,9 +231,19 @@ export default function BrowseView({ articles, onSelectArticle, loading, lang = 
               >
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <span className="bg-medical-50 text-medical-700 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider">
-                      {categoryLabelMap[article.category] || article.category}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <div className="w-5 h-5 rounded-md overflow-hidden border border-gray-100 shadow-2xs shrink-0">
+                        <img 
+                          src="/files/icon/icon.svg" 
+                          alt="Paeonix Icon" 
+                          className="w-full h-full object-cover" 
+                          referrerPolicy="no-referrer" 
+                        />
+                      </div>
+                      <span className="bg-medical-50 text-medical-700 text-[10px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider">
+                        {categoryLabelMap[article.category] || article.category}
+                      </span>
+                    </div>
                     {!article.approved && (
                       <span className="bg-amber-50 text-amber-700 text-[10px] font-bold px-2 py-0.5 rounded-md border border-amber-100">
                         Pending Approval

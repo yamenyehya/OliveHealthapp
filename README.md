@@ -1,9 +1,20 @@
+<div align="center">
+<img width="1200" height="475" alt="GHBanner" src="https://ai.google.dev/static/site-assets/images/share-ais-513315318.png" />
+</div>
 
-## PAEONIX
+# Run and deploy your AI Studio app
+
+This contains everything you need to run your app locally.
+
+View your app in AI Studio: https://ai.studio/apps/be034ba7-e07b-4aec-860d-2a26b2988e5f
+
+## Run Locally
+
+**Prerequisites:**  Node.js
 
 
-Paeonix is a healthcare platform that combines a verified medical encyclopedia, AI-powered health guidance, and doctor profiles in one place. Users can read reliable medical articles, explore doctors with community reviews, and use an AI assistant to better understand symptoms and prepare for medical consultations. The platform focuses on education and guidance—not diagnosis—making healthcare information more accessible and easier to understand.
-## Powered By
-
-- [@NuxWeb](https://nuxweb.netlify.app)
-
+1. Install dependencies:
+   `npm install`
+2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
+3. Run the app:
+   `npm run dev`

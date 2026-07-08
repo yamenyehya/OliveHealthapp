@@ -221,6 +221,14 @@ export default function ArticleDetailView({
       {/* Main Content Area */}
       <div className="px-4 pt-6 max-w-prose mx-auto">
         <div className="flex items-center gap-2 mb-3">
+          <div className="w-6 h-6 rounded-md overflow-hidden border border-gray-100 shadow-2xs shrink-0 flex items-center justify-center bg-white">
+            <img 
+              src="/files/icon/icon.svg" 
+              alt="Paeonix Verified Icon" 
+              className="w-full h-full object-cover" 
+              referrerPolicy="no-referrer" 
+            />
+          </div>
           <span className="bg-medical-50 text-medical-700 text-xs font-bold px-2.5 py-1 rounded-lg uppercase tracking-wide">
             {article.category}
           </span>

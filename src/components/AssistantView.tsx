@@ -1,12 +1,41 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Send, Sparkles, ChevronRight, Activity, AlertTriangle, FileText, Check, MessageSquare, Phone, ArrowRight, X } from "lucide-react";
+import { Send, Sparkles, ChevronRight, Activity, AlertTriangle, FileText, Check, MessageSquare, Phone, ArrowRight, X, Trash2, Plus, History } from "lucide-react";
 import { ChatMessage, Article, User } from "../types.js";
 import { useTranslation } from "../localization.js";
+
+// Helper function to render text formatted with **bold** and *italics*
+const renderFormattedText = (text: string) => {
+  if (!text) return null;
+  // Split by ** to support bold text
+  const parts = text.split(/\*\*([^*]+)\*\*/g);
+  return parts.map((part, index) => {
+    if (index % 2 === 1) {
+      return (
+        <strong key={index} className="font-extrabold text-medical-950">
+          {part}
+        </strong>
+      );
+    }
+    // Handle single * for italics
+    const subParts = part.split(/\*([^*]+)\*/g);
+    return subParts.map((subPart, subIndex) => {
+      if (subIndex % 2 === 1) {
+        return (
+          <em key={`${index}-${subIndex}`} className="italic font-medium">
+            {subPart}
+          </em>
+        );
+      }
+      return subPart;
+    });
+  });
+};
 
 interface AssistantViewProps {
   user: User | null;
   chatHistory: ChatMessage[];
-  onSendMessage: (text: string) => Promise<void>;
+  onSendMessage: (text: string, threadId?: string, threadTitle?: string) => Promise<void>;
+  onClearChat?: (threadId?: string) => Promise<void>;
   onSelectArticle: (article: Article) => void;
   articles: Article[];
   isThinking: boolean;
@@ -17,6 +46,7 @@ export default function AssistantView({
   user,
   chatHistory,
   onSendMessage,
+  onClearChat,
   onSelectArticle,
   articles,
   isThinking,
@@ -26,34 +56,55 @@ export default function AssistantView({
   const [inputText, setInputText] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Announcement and Doctor Summary States
-  const [showAnnouncement, setShowAnnouncement] = useState(() => {
-    return localStorage.getItem("paeonix_hide_chat_feature_announcement_v1") !== "true";
+  // Thread and History States
+  const [currentThreadId, setCurrentThreadId] = useState<string>(() => {
+    return localStorage.getItem("active_chat_thread_id") || "default";
   });
+  const [showHistory, setShowHistory] = useState(false);
+
+  // Doctor Summary States
   const [generatingSummary, setGeneratingSummary] = useState(false);
   const [doctorSummary, setDoctorSummary] = useState<string | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
   const [showSummaryPanel, setShowSummaryPanel] = useState(false);
   const [copied, setCopied] = useState(false);
 
+  // Filter messages for current thread
+  const currentThreadMessages = chatHistory.filter(
+    (msg) => (msg.threadId || "default") === currentThreadId
+  );
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatHistory, isThinking]);
+  }, [currentThreadMessages.length, isThinking]);
+
+  const changeThread = (id: string) => {
+    setCurrentThreadId(id);
+    localStorage.setItem("active_chat_thread_id", id);
+  };
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputText.trim() || isThinking) return;
-    onSendMessage(inputText);
+
+    const isFirstMsg = currentThreadMessages.length === 0;
+    const threadTitle = isFirstMsg 
+      ? (inputText.trim().slice(0, 35) + (inputText.trim().length > 35 ? "..." : "")) 
+      : undefined;
+
+    onSendMessage(inputText.trim(), currentThreadId, threadTitle);
     setInputText("");
   };
 
-  const handleDismissAnnouncement = () => {
-    setShowAnnouncement(false);
-    localStorage.setItem("paeonix_hide_chat_feature_announcement_v1", "true");
+  const handleNewChat = () => {
+    const newId = `thread-${Date.now()}`;
+    changeThread(newId);
+    setInputText("");
+    setShowHistory(false);
   };
 
   const handleGenerateSummary = async () => {
-    if (chatHistory.length === 0) return;
+    if (currentThreadMessages.length === 0) return;
     setGeneratingSummary(true);
     setSummaryError(null);
     setDoctorSummary(null);
@@ -66,7 +117,7 @@ export default function AssistantView({
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          history: chatHistory,
+          history: currentThreadMessages,
           language: lang
         })
       });
@@ -94,6 +145,53 @@ export default function AssistantView({
     } catch (err) {
       console.error("Failed to copy", err);
     }
+  };
+
+  // Group threads
+  const getThreadList = () => {
+    const threadsMap: Record<string, { id: string; title: string; lastActivity: string; msgCount: number }> = {};
+    
+    const hasDefaultMessages = chatHistory.some(m => !m.threadId || m.threadId === "default");
+    if (hasDefaultMessages || currentThreadId === "default") {
+      threadsMap["default"] = {
+        id: "default",
+        title: "General Inquiries",
+        lastActivity: new Date(0).toISOString(),
+        msgCount: 0
+      };
+    }
+
+    chatHistory.forEach((msg) => {
+      const tId = msg.threadId || "default";
+      if (!threadsMap[tId]) {
+        threadsMap[tId] = {
+          id: tId,
+          title: "New Chat",
+          lastActivity: msg.createdAt,
+          msgCount: 0
+        };
+      }
+      
+      threadsMap[tId].msgCount += 1;
+      if (new Date(msg.createdAt) > new Date(threadsMap[tId].lastActivity)) {
+        threadsMap[tId].lastActivity = msg.createdAt;
+      }
+
+      if (msg.sender === "user" && (threadsMap[tId].title === "New Chat" || threadsMap[tId].title === "General Inquiries")) {
+        threadsMap[tId].title = msg.text.slice(0, 35) + (msg.text.length > 35 ? "..." : "");
+      }
+    });
+
+    if (currentThreadId && !threadsMap[currentThreadId]) {
+      threadsMap[currentThreadId] = {
+        id: currentThreadId,
+        title: "New Chat",
+        lastActivity: new Date().toISOString(),
+        msgCount: 0
+      };
+    }
+
+    return Object.values(threadsMap).sort((a, b) => new Date(b.lastActivity).getTime() - new Date(a.lastActivity).getTime());
   };
 
   // Contact parameters
@@ -137,8 +235,34 @@ export default function AssistantView({
           </div>
           <div>
             <h1 className="text-sm font-bold text-gray-900 leading-tight">{t("chatHeader")}</h1>
-            <p className="text-[10px] text-gray-400 font-semibold">{t("chatSub")}</p>
+            <p className="text-[10px] text-gray-400 font-semibold">
+              {currentThreadId === "default" ? t("chatSub") : "Active Chat Session"}
+            </p>
           </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          {/* Chat History Button */}
+          <button
+            onClick={() => setShowHistory(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs text-gray-700 hover:text-medical-800 hover:bg-medical-50 active:bg-medical-100 rounded-lg border border-gray-200 hover:border-medical-200 transition-all font-bold select-none cursor-pointer"
+            id="history-chat-btn"
+            title="View Chat History"
+          >
+            <History className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">History</span>
+          </button>
+
+          {/* New Chat Button */}
+          <button
+            onClick={handleNewChat}
+            className="flex items-center gap-1.5 px-3 py-1.5 text-xs bg-medical-600 hover:bg-medical-700 active:scale-95 text-white rounded-lg transition-all font-bold select-none cursor-pointer shadow-sm"
+            id="new-chat-btn"
+            title="Start New Chat"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>New Chat</span>
+          </button>
         </div>
       </div>
 
@@ -150,45 +274,87 @@ export default function AssistantView({
         </p>
       </div>
 
-      {/* NEW FEATURE ANNOUNCEMENT / ADVERTISEMENT */}
-      {showAnnouncement && (
-        <div className="bg-gradient-to-r from-medical-500/10 to-medical-500/5 border-b border-medical-100 p-4 animate-fade-in relative overflow-hidden shrink-0">
-          <button
-            onClick={handleDismissAnnouncement}
-            className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-all p-1 rounded-full hover:bg-gray-100/50"
-            title="Dismiss Announcement"
-          >
-            <X className="w-4 h-4" />
-          </button>
-          
-          <div className="flex items-start gap-3 max-w-2xl">
-            <div className="bg-medical-500 text-white p-2 rounded-xl shrink-0 shadow-sm mt-0.5">
-              <Sparkles className="w-4 h-4" />
-            </div>
-            <div className="pr-6">
+      {/* Chat History Sidebar Overlay */}
+      {showHistory && (
+        <div className="absolute inset-0 bg-slate-900/40 backdrop-blur-xs z-30 flex justify-start">
+          <div className="w-80 max-w-[85%] bg-white h-full shadow-2xl flex flex-col animate-slide-in-right relative">
+            <div className="p-4 border-b border-gray-100 flex items-center justify-between bg-gray-50 shrink-0">
               <div className="flex items-center gap-2">
-                <span className="bg-medical-600 text-white text-[8px] font-extrabold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                  New Update
-                </span>
-                <span className="text-[10px] text-medical-700 font-bold">Secure AI Doctor Integration</span>
+                <MessageSquare className="w-4 h-4 text-medical-600" />
+                <h3 className="text-sm font-bold text-gray-950">Chat History</h3>
               </div>
-              <h3 className="text-xs font-bold text-gray-900 mt-1.5">
-                Improve Patient-Doctor Communication
-              </h3>
-              <p className="text-[11px] text-gray-600 mt-1 leading-relaxed">
-                Paeonix AI is structured purely to **improve communication** with your doctor. Our AI **does not diagnose conditions**, prescribe medicines, or replace professional care.
-              </p>
-              <p className="text-[11px] text-gray-600 mt-1.5 leading-relaxed">
-                Instead, it simplifies clinical terminology, organizes your personal concerns, and generates **structured symptom summaries** in your selected language ({lang.toUpperCase()}) ready to be sent to your doctor in one tap.
-              </p>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="text-gray-400 hover:text-gray-600 p-1 rounded-full hover:bg-gray-100 transition-all cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-3 space-y-2">
+              {getThreadList().map((thread) => {
+                const isActive = thread.id === currentThreadId;
+                return (
+                  <div
+                    key={thread.id}
+                    className={`flex items-center justify-between p-3 rounded-xl border transition-all ${
+                      isActive
+                        ? "bg-medical-50/75 border-medical-200 text-medical-900 shadow-sm"
+                        : "bg-white hover:bg-gray-50 border-gray-100 text-gray-700"
+                    }`}
+                  >
+                    <button
+                      onClick={() => {
+                        changeThread(thread.id);
+                        setShowHistory(false);
+                      }}
+                      className="flex-1 text-left min-w-0 font-semibold text-xs focus:outline-none cursor-pointer"
+                    >
+                      <p className="truncate">{thread.title}</p>
+                      <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                        {thread.msgCount} {thread.msgCount === 1 ? "message" : "messages"}
+                      </p>
+                    </button>
+
+                    <button
+                      onClick={() => {
+                        if (confirm("Are you sure you want to delete this chat session?")) {
+                          if (onClearChat) {
+                            onClearChat(thread.id);
+                          }
+                          if (thread.id === currentThreadId) {
+                            changeThread("default");
+                          }
+                        }
+                      }}
+                      className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer shrink-0 ml-1"
+                      title="Delete chat session"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="p-3 border-t border-gray-100 bg-gray-50">
+              <button
+                onClick={handleNewChat}
+                className="w-full py-2.5 px-4 bg-medical-600 hover:bg-medical-700 active:scale-98 text-white rounded-xl font-extrabold text-xs flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Start New Chat</span>
+              </button>
             </div>
           </div>
+          {/* Backdrop click to close */}
+          <div className="flex-1 h-full cursor-pointer" onClick={() => setShowHistory(false)} />
         </div>
       )}
 
       {/* Message List area */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {chatHistory.length === 0 ? (
+        {currentThreadMessages.length === 0 ? (
           <div className="text-center py-8 space-y-6 max-w-sm mx-auto">
             <div className="bg-medical-50 p-4 rounded-full w-16 h-16 flex items-center justify-center mx-auto text-medical-600">
               <Activity className="w-8 h-8 animate-pulse-slow" />
@@ -217,24 +383,9 @@ export default function AssistantView({
         ) : (
           <div className="space-y-4">
             
-            {/* Clinical summary helper card at top of active chat history */}
-            <div className="bg-white border border-gray-100 rounded-2xl p-4 shadow-sm flex items-center justify-between gap-3 animate-fade-in">
-              <div className="flex items-center gap-2.5 min-w-0">
-                <FileText className="w-5 h-5 text-medical-500 shrink-0" />
-                <div className="min-w-0">
-                  <h4 className="text-xs font-bold text-gray-800">Format Doctor Summary</h4>
-                  <p className="text-[10px] text-gray-400 truncate">Synthesize these symptoms for your doctor</p>
-                </div>
-              </div>
-              <button
-                onClick={handleGenerateSummary}
-                className="bg-medical-600 hover:bg-medical-700 text-white font-extrabold text-[10px] px-3 py-1.5 rounded-xl transition-all shadow-sm focus:outline-none whitespace-nowrap"
-              >
-                Summarize Conversation
-              </button>
-            </div>
 
-            {chatHistory.map((msg) => {
+
+            {currentThreadMessages.map((msg) => {
               const isAssistant = msg.sender === "assistant";
               return (
                 <div key={msg.id} className={`flex flex-col ${isAssistant ? "items-start" : "items-end"}`}>
@@ -246,7 +397,7 @@ export default function AssistantView({
                     }`}
                   >
                     {/* Render message body */}
-                    <div className="whitespace-pre-wrap">{msg.text}</div>
+                    <div className="whitespace-pre-wrap">{renderFormattedText(msg.text)}</div>
 
                     {/* Interactive matched article cards, if suggested by AI model */}
                     {isAssistant && msg.suggestedArticles && msg.suggestedArticles.length > 0 && (
@@ -398,6 +549,17 @@ export default function AssistantView({
             disabled={isThinking}
             className="flex-1 bg-gray-50 border border-gray-200 rounded-2xl py-2.5 px-4 text-sm text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-medical-500 focus:border-transparent transition-all disabled:opacity-50"
           />
+          {chatHistory.length > 0 && (
+            <button
+              type="button"
+              onClick={handleGenerateSummary}
+              title="Summarize conversation for doctor"
+              className="bg-amber-500 hover:bg-amber-600 text-white p-2.5 rounded-2xl transition-all shadow-md active:scale-95 focus:outline-none shrink-0 flex items-center gap-1 text-xs font-extrabold"
+            >
+              <FileText className="w-4 h-4 text-white" />
+              <span className="hidden sm:inline">Summarize</span>
+            </button>
+          )}
           <button
             type="submit"
             disabled={!inputText.trim() || isThinking}

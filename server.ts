@@ -200,7 +200,8 @@ app.get("/api/auth/me", authenticateToken, async (req: any, res: any) => {
       settings: user.settings || {},
       verificationStatus: user.verificationStatus || null,
       verificationDeclinedAt: user.verificationDeclinedAt || null,
-      notification: user.notification || null
+      notification: user.notification || null,
+      chatHistory: user.chatHistory || []
     });
   } catch (err: any) {
     res.status(500).json({ error: "Error retrieving profile" });
@@ -1180,8 +1181,8 @@ Return a raw JSON object matching this schema exactly:
 });
 
 // 4. AI-Powered Assistant Route (Strictly Educational)
-app.post("/api/ai/chat", async (req, res) => {
-  const { message, history } = req.body;
+app.post("/api/ai/chat", authenticateToken, async (req: any, res: any) => {
+  const { message, history, threadId, threadTitle } = req.body;
   if (!message) {
     return res.status(400).json({ error: "Message is required" });
   }
@@ -1220,14 +1221,23 @@ Schema:
 }
 If no database articles are matching, return suggestedArticles as an empty array [].`;
 
+    // Retrieve full user record to read existing chatHistory
+    const user = await getUserById(req.user.id);
+    const existingHistory = user?.chatHistory || [];
+
+    // Use passed history or fallback to DB history, keeping last 12 messages for token economy
+    const currentThreadId = threadId || "default";
+    const sourceHistory = history && Array.isArray(history) && history.length > 0 
+      ? history 
+      : existingHistory.filter((msg: any) => (msg.threadId || "default") === currentThreadId);
+    const recentHistory = sourceHistory.slice(-12);
+
     const chatMessages = [];
-    if (history && Array.isArray(history)) {
-      for (const msg of history) {
-        chatMessages.push({
-          role: msg.sender === "user" ? "user" : "model",
-          parts: [{ text: msg.text }]
-        });
-      }
+    for (const msg of recentHistory) {
+      chatMessages.push({
+        role: msg.sender === "user" ? "user" : "model",
+        parts: [{ text: msg.text }]
+      });
     }
     chatMessages.push({
       role: "user",
@@ -1263,10 +1273,67 @@ If no database articles are matching, return suggestedArticles as an empty array
     });
 
     const output = JSON.parse(response.text || "{}");
-    res.json(output);
+
+    // Persist new messages to chatHistory
+    const newUserMsg = {
+      id: `user-msg-${Date.now()}`,
+      sender: "user",
+      text: message,
+      threadId: currentThreadId,
+      threadTitle: threadTitle || undefined,
+      createdAt: new Date().toISOString()
+    };
+
+    const newAssistantMsg = {
+      id: `ai-msg-${Date.now()}`,
+      sender: "assistant",
+      text: output.text,
+      suggestedArticles: output.suggestedArticles || [],
+      threadId: currentThreadId,
+      threadTitle: threadTitle || undefined,
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedHistory = [...existingHistory, newUserMsg, newAssistantMsg];
+    await updateUser(req.user.id, { chatHistory: updatedHistory });
+
+    res.json({
+      text: output.text,
+      suggestedArticles: output.suggestedArticles || [],
+      threadId: currentThreadId
+    });
   } catch (err: any) {
     console.error("AI Assistant Chat failed:", err);
     res.status(500).json({ error: `Assistant offline: ${err.message || "Please check your clinical AI gateway configurations."}` });
+  }
+});
+
+// Clear AI Chat History (specific thread or all)
+app.post("/api/ai/chat/clear", authenticateToken, async (req: any, res: any) => {
+  const { threadId } = req.body || {};
+  try {
+    const user = await getUserById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    const existingHistory = user.chatHistory || [];
+    let updatedHistory;
+
+    if (threadId) {
+      updatedHistory = existingHistory.filter((msg: any) => {
+        const msgThreadId = msg.threadId || "default";
+        return msgThreadId !== threadId;
+      });
+    } else {
+      updatedHistory = [];
+    }
+
+    await updateUser(req.user.id, { chatHistory: updatedHistory });
+    res.json({ success: true, chatHistory: updatedHistory });
+  } catch (err: any) {
+    console.error("Failed to clear chat history:", err);
+    res.status(500).json({ error: "Failed to clear chat history" });
   }
 });
 
@@ -1290,7 +1357,8 @@ STRICT REQUIREMENTS:
 1. FOCUS PURELY ON: Describing symptoms, concerns, timeline, severity, and other patient-reported relevant details.
 2. ABSOLUTE FORBIDDEN: Do NOT include any diagnosis, medical conclusion, prescription, or clinical decision.
 3. LANGUAGE: Generate the message completely in the requested language: "${langCode}" (e.g. "en" for English, "es" for Spanish, "fr" for French, "ar" for Arabic). Use a respectful, clear patient-to-doctor tone.
-4. STRUCTURE: Keep it concise, organized with simple bullet points, and ready to send. Keep it within a reasonable length for WhatsApp/SMS. No markdown links or complex syntax. It should start with a polite greeting to the doctor.`;
+4. STRUCTURE: Keep it concise, organized with simple bullet points, and ready to send. Keep it within a reasonable length for WhatsApp/SMS. No markdown links or complex syntax. It should start with a polite greeting to the doctor.
+5. NO ASTERISKS: Do NOT use any asterisks (*) or double asterisks (**) anywhere in the output. For lists, use standard dashes (-) or plain numbers. For category headers, use simple CAPITALIZED text (e.g., SYMPTOMS:) followed by line breaks instead of markdown.`;
 
     const chatContent = history.map((msg: any) => `${msg.sender === "user" ? "Patient" : "Assistant"}: ${msg.text}`).join("\n");
 

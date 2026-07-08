@@ -30,6 +30,7 @@ export interface User {
     articleId: string;
     readAt: string;
   }[];
+  chatHistory?: ChatMessage[];
   settings?: {
     theme?: string;
     language?: string;
@@ -86,6 +87,8 @@ export interface ChatMessage {
   text: string;
   createdAt: string;
   suggestedArticles?: { id: string; title: string; summary: string }[];
+  threadId?: string;
+  threadTitle?: string;
 }
 
 export interface AuthResponse {

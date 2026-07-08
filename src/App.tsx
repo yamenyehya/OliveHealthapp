@@ -254,6 +254,7 @@ export default function App() {
       if (res.ok) {
         const data = await res.json();
         setUser(data);
+        setChatHistory(data.chatHistory || []);
       } else {
         // Stale or invalid token
         handleLogout();
@@ -361,24 +362,40 @@ export default function App() {
     }
   };
 
-  const handleSendChatMessage = async (text: string) => {
+  const handleSendChatMessage = async (text: string, threadId?: string, threadTitle?: string) => {
+    const activeThreadId = threadId || "default";
     const userMsg: ChatMessage = {
       id: `user-msg-${Date.now()}`,
       sender: "user",
       text,
+      threadId: activeThreadId,
+      threadTitle,
       createdAt: new Date().toISOString()
     };
 
+    // Optimistically update UI
     setChatHistory((prev) => [...prev, userMsg]);
     setChatThinking(true);
 
     try {
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+
+      // Filter context messages by the active thread ID
+      const currentThreadMessages = chatHistory
+        .filter((msg) => (msg.threadId || "default") === activeThreadId)
+        .slice(-10);
+
       const res = await fetch("/api/ai/chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({
           message: text,
-          history: chatHistory.slice(-10) // Send last 10 messages for context
+          history: currentThreadMessages,
+          threadId: activeThreadId,
+          threadTitle
         })
       });
 
@@ -388,6 +405,8 @@ export default function App() {
           id: `ai-msg-${Date.now()}`,
           sender: "assistant",
           text: data.text,
+          threadId: activeThreadId,
+          threadTitle,
           createdAt: new Date().toISOString(),
           suggestedArticles: data.suggestedArticles || []
         };
@@ -398,6 +417,8 @@ export default function App() {
           id: `ai-msg-err-${Date.now()}`,
           sender: "assistant",
           text: err.error || "I am currently offline due to missing secure system configurations. Please check with your platform administrator to verify the active AI gateway settings.",
+          threadId: activeThreadId,
+          threadTitle,
           createdAt: new Date().toISOString()
         };
         setChatHistory((prev) => [...prev, assistantError]);
@@ -407,11 +428,44 @@ export default function App() {
         id: `ai-msg-err-${Date.now()}`,
         sender: "assistant",
         text: "I was unable to reach the AI Assistant gateway. Please check your internet connection.",
+        threadId: activeThreadId,
+        threadTitle,
         createdAt: new Date().toISOString()
       };
       setChatHistory((prev) => [...prev, assistantError]);
     }
     setChatThinking(false);
+  };
+
+  const handleClearChatHistory = async (threadId?: string) => {
+    try {
+      const headers: HeadersInit = { "Content-Type": "application/json" };
+      if (token) {
+        headers["Authorization"] = `Bearer ${token}`;
+      }
+      
+      const res = await fetch("/api/ai/chat/clear", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({ threadId })
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.chatHistory) {
+          setChatHistory(data.chatHistory);
+        } else {
+          // Fallback or full clear
+          if (threadId) {
+            setChatHistory((prev) => prev.filter((msg) => (msg.threadId || "default") !== threadId));
+          } else {
+            setChatHistory([]);
+          }
+        }
+      }
+    } catch (err) {
+      console.error("Error clearing chat history:", err);
+    }
   };
 
   // Filter bookmarked articles
@@ -606,6 +660,7 @@ export default function App() {
                   user={user}
                   chatHistory={chatHistory}
                   onSendMessage={handleSendChatMessage}
+                  onClearChat={handleClearChatHistory}
                   onSelectArticle={handleSelectArticle}
                   articles={articles}
                   isThinking={chatThinking}

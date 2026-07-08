@@ -785,6 +785,7 @@ export async function getUserByEmail(email: string): Promise<any | null> {
       role: item.role,
       savedArticles: item.savedArticles || [],
       readingHistory: item.readingHistory || [],
+      chatHistory: item.chatHistory || [],
       settings: item.settings || {},
       verificationStatus: item.verificationStatus || null,
       verificationDeclinedAt: item.verificationDeclinedAt || null,
@@ -815,6 +816,7 @@ export async function getUserById(id: string): Promise<any | null> {
       role: item.role,
       savedArticles: item.savedArticles || [],
       readingHistory: item.readingHistory || [],
+      chatHistory: item.chatHistory || [],
       settings: item.settings || {},
       verificationStatus: item.verificationStatus || null,
       verificationDeclinedAt: item.verificationDeclinedAt || null,
@@ -835,6 +837,7 @@ export async function createUser(user: { email: string; passwordHash: string; ro
     role: user.role || "user",
     savedArticles: [],
     readingHistory: [],
+    chatHistory: [],
     createdAt: new Date().toISOString()
   };
 

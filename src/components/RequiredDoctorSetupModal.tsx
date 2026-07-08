@@ -12,8 +12,22 @@ export default function RequiredDoctorSetupModal({ isOpen, token, onRefreshProfi
   const [method, setMethod] = useState<"whatsapp" | "sms">("whatsapp");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [skipped, setSkipped] = useState(() => {
+    try {
+      return localStorage.getItem("paeonix_skipped_doctor_setup") === "true";
+    } catch {
+      return false;
+    }
+  });
 
-  if (!isOpen) return null;
+  if (!isOpen || skipped) return null;
+
+  const handleSkip = () => {
+    try {
+      localStorage.setItem("paeonix_skipped_doctor_setup", "true");
+    } catch (e) {}
+    setSkipped(true);
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -69,8 +83,8 @@ export default function RequiredDoctorSetupModal({ isOpen, token, onRefreshProfi
           <div className="w-14 h-14 bg-white/20 rounded-2xl flex items-center justify-center mx-auto mb-3 shadow-inner">
             <Stethoscope className="w-8 h-8 text-white" />
           </div>
-          <h2 className="text-lg font-bold tracking-tight">Primary Care Setup</h2>
-          <p className="text-xs text-white/80 mt-1">One last step to secure your clinical portal connection</p>
+          <h2 className="text-lg font-bold tracking-tight">Primary Care Companion</h2>
+          <p className="text-xs text-white/80 mt-1">Enhance your patient-to-doctor communication experience</p>
         </div>
 
         {/* Form area */}
@@ -78,7 +92,7 @@ export default function RequiredDoctorSetupModal({ isOpen, token, onRefreshProfi
           <div className="bg-medical-50/50 rounded-2xl p-4 border border-medical-100 flex items-start gap-2.5">
             <Shield className="w-5 h-5 text-medical-600 mt-0.5 shrink-0" />
             <p className="text-[10px] text-medical-800 leading-relaxed font-semibold">
-              To utilize the <strong>Paeonix Secure AI Assistant</strong>, we require you to register your primary care doctor's contact number. This allows the AI to synthesize clear, non-diagnostic symptom checklists ready to send in one tap.
+              To enhance your <strong>user-to-doctor experience</strong>, you can register your primary care doctor's contact details. This allows the Paeonix Secure AI Assistant to synthesize clear, non-diagnostic symptom checklists ready to send in one tap.
             </p>
           </div>
 
@@ -142,20 +156,31 @@ export default function RequiredDoctorSetupModal({ isOpen, token, onRefreshProfi
             </div>
           </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-medical-600 hover:bg-medical-700 text-white font-extrabold py-3 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg hover:translate-y-[-1px] active:translate-y-[1px]"
-          >
-            {loading ? (
-              <span>Saving Secure Session...</span>
-            ) : (
-              <>
-                <span>Complete Patient Setup</span>
-                <ArrowRight className="w-4 h-4" />
-              </>
-            )}
-          </button>
+          <div className="flex flex-col gap-2 pt-1">
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-medical-600 hover:bg-medical-700 text-white font-extrabold py-3 px-4 rounded-xl text-xs transition-all flex items-center justify-center gap-2 shadow-md hover:shadow-lg hover:translate-y-[-1px] active:translate-y-[1px]"
+            >
+              {loading ? (
+                <span>Saving Secure Session...</span>
+              ) : (
+                <>
+                  <span>Complete Patient Setup</span>
+                  <ArrowRight className="w-4 h-4" />
+                </>
+              )}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleSkip}
+              disabled={loading}
+              className="w-full bg-gray-50 hover:bg-gray-100 text-gray-500 font-extrabold py-2.5 px-4 rounded-xl text-xs transition-all text-center border border-gray-100"
+            >
+              Add Later / Skip
+            </button>
+          </div>
         </form>
       </div>
     </div>
